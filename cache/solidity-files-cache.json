@@ -1,9 +1,9 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "D:\\Minor Project\\genomic-data-platform\\contracts\\GenShareRegistry.sol": {
-      "lastModificationDate": 1771750778564,
-      "contentHash": "8fcb1f9eaaf474b3a97e41455a82a859",
+    "D:\\Minor Project\\GeneBlockchain\\contracts\\GenShareRegistry.sol": {
+      "lastModificationDate": 1771776514744,
+      "contentHash": "55e87198819e1060d6721b5afb711939",
       "sourceName": "contracts/GenShareRegistry.sol",
       "solcConfig": {
         "version": "0.8.20",

@@ -20,8 +20,51 @@ contract GenShareRegistry {
     enum Role { None, Patient, Lab, Researcher }
 
     mapping(address => Role) public roles;
+    mapping(uint8 => uint256) public memberCount; // Track members per role
 
     event RoleRegistered(address indexed account, Role role);
+
+    // ===== Registration Voting =====
+    enum ProposalStatus { Pending, Approved, Rejected }
+
+    struct RegistrationProposal {
+        address applicant;
+        Role requestedRole;
+        uint256 approveCount;
+        uint256 rejectCount;
+        uint256 deadline;
+        ProposalStatus status;
+        bool exists;
+    }
+
+    uint256 public proposalCount;
+    mapping(uint256 => RegistrationProposal) public proposals;
+    mapping(uint256 => mapping(address => bool)) public hasVoted;
+
+    event RegistrationProposed(
+        uint256 indexed proposalId,
+        address indexed applicant,
+        Role requestedRole,
+        uint256 deadline
+    );
+
+    event RegistrationVoted(
+        uint256 indexed proposalId,
+        address indexed voter,
+        bool approve
+    );
+
+    event RegistrationApproved(
+        uint256 indexed proposalId,
+        address indexed applicant,
+        Role role
+    );
+
+    event RegistrationRejected(
+        uint256 indexed proposalId,
+        address indexed applicant,
+        Role role
+    );
 
     // ===== Genomic Hash Registry =====
     struct GenomicRecord {
@@ -114,8 +157,137 @@ contract GenShareRegistry {
      */
     function registerRole(address _account, Role _role) external onlyOwner {
         require(_role != Role.None, "Cannot assign None role");
+        if (roles[_account] == Role.None) {
+            memberCount[uint8(_role)]++;
+        }
         roles[_account] = _role;
         emit RoleRegistered(_account, _role);
+    }
+
+    // ===== Registration Voting Functions =====
+
+    /**
+     * @notice Propose a new registration. If no existing members, auto-approves.
+     * @param _applicant Address of the applicant
+     * @param _role Requested role (Lab or Researcher)
+     * @param _votingDays Duration of voting window in days
+     */
+    function proposeRegistration(
+        address _applicant,
+        Role _role,
+        uint256 _votingDays
+    ) external returns (uint256) {
+        require(_role == Role.Lab || _role == Role.Researcher, "Only Lab or Researcher roles");
+        require(roles[_applicant] == Role.None, "Already has a role");
+        require(_votingDays > 0, "Voting duration must be > 0");
+
+        uint256 proposalId = proposalCount;
+        uint256 deadline = block.timestamp + (_votingDays * 1 days);
+
+        proposals[proposalId] = RegistrationProposal({
+            applicant: _applicant,
+            requestedRole: _role,
+            approveCount: 0,
+            rejectCount: 0,
+            deadline: deadline,
+            status: ProposalStatus.Pending,
+            exists: true
+        });
+        proposalCount++;
+
+        emit RegistrationProposed(proposalId, _applicant, _role, deadline);
+
+        // Bootstrap: if no existing members of this role, auto-approve
+        if (memberCount[uint8(_role)] == 0) {
+            proposals[proposalId].status = ProposalStatus.Approved;
+            roles[_applicant] = _role;
+            memberCount[uint8(_role)]++;
+            emit RoleRegistered(_applicant, _role);
+            emit RegistrationApproved(proposalId, _applicant, _role);
+        }
+
+        return proposalId;
+    }
+
+    /**
+     * @notice Vote on a registration proposal
+     * @param _proposalId ID of the proposal
+     * @param _approve true = approve, false = reject
+     */
+    function voteOnRegistration(uint256 _proposalId, bool _approve) external {
+        RegistrationProposal storage p = proposals[_proposalId];
+        require(p.exists, "Proposal does not exist");
+        require(p.status == ProposalStatus.Pending, "Proposal already resolved");
+        require(block.timestamp <= p.deadline, "Voting period ended");
+        require(roles[msg.sender] == p.requestedRole, "Must hold same role to vote");
+        require(!hasVoted[_proposalId][msg.sender], "Already voted");
+
+        hasVoted[_proposalId][msg.sender] = true;
+
+        if (_approve) {
+            p.approveCount++;
+        } else {
+            p.rejectCount++;
+        }
+
+        emit RegistrationVoted(_proposalId, msg.sender, _approve);
+
+        // Check if majority already reached (early finalization)
+        uint256 totalMembers = memberCount[uint8(p.requestedRole)];
+        uint256 majority = (totalMembers / 2) + 1;
+
+        if (p.approveCount >= majority) {
+            p.status = ProposalStatus.Approved;
+            roles[p.applicant] = p.requestedRole;
+            memberCount[uint8(p.requestedRole)]++;
+            emit RoleRegistered(p.applicant, p.requestedRole);
+            emit RegistrationApproved(_proposalId, p.applicant, p.requestedRole);
+        } else if (p.rejectCount >= majority) {
+            p.status = ProposalStatus.Rejected;
+            emit RegistrationRejected(_proposalId, p.applicant, p.requestedRole);
+        }
+    }
+
+    /**
+     * @notice Finalize a proposal after voting deadline (if not already resolved)
+     * @param _proposalId ID of the proposal
+     */
+    function finalizeRegistration(uint256 _proposalId) external {
+        RegistrationProposal storage p = proposals[_proposalId];
+        require(p.exists, "Proposal does not exist");
+        require(p.status == ProposalStatus.Pending, "Already resolved");
+        require(block.timestamp > p.deadline, "Voting still open");
+
+        if (p.approveCount > p.rejectCount) {
+            p.status = ProposalStatus.Approved;
+            roles[p.applicant] = p.requestedRole;
+            memberCount[uint8(p.requestedRole)]++;
+            emit RoleRegistered(p.applicant, p.requestedRole);
+            emit RegistrationApproved(_proposalId, p.applicant, p.requestedRole);
+        } else {
+            p.status = ProposalStatus.Rejected;
+            emit RegistrationRejected(_proposalId, p.applicant, p.requestedRole);
+        }
+    }
+
+    /**
+     * @notice Get details of a registration proposal
+     */
+    function getProposal(uint256 _proposalId)
+        external
+        view
+        returns (
+            address applicant,
+            Role requestedRole,
+            uint256 approveCount,
+            uint256 rejectCount,
+            uint256 deadline,
+            ProposalStatus status
+        )
+    {
+        RegistrationProposal storage p = proposals[_proposalId];
+        require(p.exists, "Proposal does not exist");
+        return (p.applicant, p.requestedRole, p.approveCount, p.rejectCount, p.deadline, p.status);
     }
 
     // ===== Genomic Hash Registry Functions =====

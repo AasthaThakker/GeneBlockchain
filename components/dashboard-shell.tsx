@@ -22,6 +22,7 @@ import {
   Wallet,
   Wifi,
   Users,
+  UserPlus,
   type LucideIcon,
 } from "lucide-react"
 import { type ReactNode, useEffect } from "react"
@@ -50,6 +51,7 @@ const navMap: Record<NonNullable<UserRole>, NavItem[]> = {
     { label: "Integrity Check", href: "/lab/integrity", icon: CheckCircle2 },
     { label: "Audit Logs", href: "/lab/audit", icon: ScrollText },
     { label: "Team Management", href: "/lab/team", icon: Users },
+    { label: "Registration Requests", href: "/lab/registrations", icon: UserPlus },
   ],
   researcher: [
     { label: "Dashboard", href: "/researcher", icon: LayoutDashboard },
@@ -58,6 +60,7 @@ const navMap: Record<NonNullable<UserRole>, NavItem[]> = {
     { label: "Active Permissions", href: "/researcher/permissions", icon: ShieldCheck },
     { label: "Audit History", href: "/researcher/audit", icon: History },
     { label: "Team Management", href: "/researcher/team", icon: Users },
+    { label: "Registration Requests", href: "/researcher/registrations", icon: UserPlus },
   ],
 }
 

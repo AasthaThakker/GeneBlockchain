@@ -15,23 +15,49 @@ import {
   Microscope,
   Wallet,
   Dna,
+  UserPlus,
+  CheckCircle2,
+  Clock,
 } from "lucide-react"
+
+type LabView = "buttons" | "login" | "register"
+type ResearcherView = "buttons" | "login" | "register"
 
 export function LandingPage() {
   const router = useRouter()
   const { connectWallet, loginWithEmail } = useAuth()
-  const [showLabLogin, setShowLabLogin] = useState(false)
-  const [showResearcherLogin, setShowResearcherLogin] = useState(false)
+
+  // Lab state
+  const [labView, setLabView] = useState<LabView>("buttons")
   const [labEmail, setLabEmail] = useState("")
   const [labPassword, setLabPassword] = useState("")
+
+  // Lab registration state
+  const [labRegName, setLabRegName] = useState("")
+  const [labRegEmail, setLabRegEmail] = useState("")
+  const [labRegPassword, setLabRegPassword] = useState("")
+  const [labRegWallet, setLabRegWallet] = useState("")
+
+  // Researcher state
+  const [resView, setResView] = useState<ResearcherView>("buttons")
   const [resEmail, setResEmail] = useState("")
   const [resPassword, setResPassword] = useState("")
+
+  // Researcher registration state
+  const [resRegName, setResRegName] = useState("")
+  const [resRegEmail, setResRegEmail] = useState("")
+  const [resRegPassword, setResRegPassword] = useState("")
+  const [resRegWallet, setResRegWallet] = useState("")
+  const [resRegInstitution, setResRegInstitution] = useState("")
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const handlePatientConnect = async () => {
     setLoading(true)
     setError(null)
+    setSuccessMessage(null)
     try {
       await connectWallet("patient")
       router.push("/patient")
@@ -45,6 +71,7 @@ export function LandingPage() {
   const handleLabMetaMask = async () => {
     setLoading(true)
     setError(null)
+    setSuccessMessage(null)
     try {
       await connectWallet("lab")
       router.push("/lab")
@@ -59,6 +86,7 @@ export function LandingPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setSuccessMessage(null)
     try {
       await loginWithEmail(labEmail, labPassword, "lab")
       router.push("/lab")
@@ -72,6 +100,7 @@ export function LandingPage() {
   const handleResearcherMetaMask = async () => {
     setLoading(true)
     setError(null)
+    setSuccessMessage(null)
     try {
       await connectWallet("researcher")
       router.push("/researcher")
@@ -86,11 +115,116 @@ export function LandingPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setSuccessMessage(null)
     try {
       await loginWithEmail(resEmail, resPassword, "researcher")
       router.push("/researcher")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid credentials")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const connectWalletForRegistration = async (setter: (addr: string) => void) => {
+    if (typeof window === "undefined" || !(window as unknown as Record<string, unknown>).ethereum) {
+      setError("MetaMask is not installed. Please install MetaMask to continue.")
+      return
+    }
+    try {
+      const ethereum = (window as unknown as Record<string, unknown>).ethereum as {
+        request: (args: { method: string }) => Promise<string[]>
+      }
+      const accounts = await ethereum.request({ method: "eth_requestAccounts" })
+      if (accounts[0]) {
+        setter(accounts[0])
+      }
+    } catch {
+      setError("Failed to connect wallet")
+    }
+  }
+
+  const handleLabRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    setSuccessMessage(null)
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: labRegName,
+          email: labRegEmail,
+          password: labRegPassword,
+          role: "LAB",
+          walletAddress: labRegWallet,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || "Registration failed")
+      }
+
+      setSuccessMessage(data.message)
+      // Reset form
+      setLabRegName("")
+      setLabRegEmail("")
+      setLabRegPassword("")
+      setLabRegWallet("")
+      if (data.autoApproved) {
+        setTimeout(() => {
+          setLabView("login")
+          setSuccessMessage(null)
+        }, 3000)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Registration failed")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResearcherRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    setSuccessMessage(null)
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: resRegName,
+          email: resRegEmail,
+          password: resRegPassword,
+          role: "RESEARCHER",
+          walletAddress: resRegWallet,
+          institution: resRegInstitution,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || "Registration failed")
+      }
+
+      setSuccessMessage(data.message)
+      // Reset form
+      setResRegName("")
+      setResRegEmail("")
+      setResRegPassword("")
+      setResRegWallet("")
+      setResRegInstitution("")
+      if (data.autoApproved) {
+        setTimeout(() => {
+          setResView("login")
+          setSuccessMessage(null)
+        }, 3000)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Registration failed")
     } finally {
       setLoading(false)
     }
@@ -189,12 +323,23 @@ export function LandingPage() {
         <div className="mx-auto max-w-7xl px-6">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-foreground">Access Portal</h2>
-            <p className="mt-3 text-muted-foreground">Select your role to access the platform</p>
+            <p className="mt-3 text-muted-foreground">Select your role to access the platform or register as a new member</p>
           </div>
 
           {error && (
             <div className="mx-auto mt-4 max-w-md rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-center text-sm text-destructive">
               {error}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="mx-auto mt-4 max-w-md rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-center text-sm text-primary flex items-center justify-center gap-2">
+              {successMessage.includes("approved") ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+              ) : (
+                <Clock className="h-4 w-4 shrink-0" />
+              )}
+              {successMessage}
             </div>
           )}
 
@@ -225,13 +370,13 @@ export function LandingPage() {
               </div>
               <h3 className="mb-2 text-xl font-bold text-foreground">Lab / Pharmacy</h3>
               <p className="mb-6 text-sm text-muted-foreground">
-                Login via email/password or connect MetaMask to manage genomic data files.
+                Login, connect MetaMask, or register as a new lab member.
               </p>
-              {!showLabLogin ? (
+              {labView === "buttons" ? (
                 <div className="flex flex-col gap-2">
                   <Button
                     variant="outline"
-                    onClick={() => setShowLabLogin(true)}
+                    onClick={() => { setLabView("login"); setError(null); setSuccessMessage(null) }}
                     className="w-full border-chart-2/30 text-chart-2 hover:bg-chart-2/10"
                   >
                     <FlaskConical className="mr-2 h-4 w-4" />
@@ -246,8 +391,16 @@ export function LandingPage() {
                     <Wallet className="mr-2 h-4 w-4" />
                     Connect MetaMask (Lab)
                   </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setLabView("register"); setError(null); setSuccessMessage(null) }}
+                    className="w-full border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Register as Lab
+                  </Button>
                 </div>
-              ) : (
+              ) : labView === "login" ? (
                 <form onSubmit={handleLabLogin} className="flex flex-col gap-3">
                   <div>
                     <Label htmlFor="lab-email" className="text-xs text-muted-foreground">
@@ -294,6 +447,102 @@ export function LandingPage() {
                     <Wallet className="mr-2 h-4 w-4" />
                     Or Connect MetaMask
                   </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setLabView("buttons")}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    ← Back
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleLabRegister} className="flex flex-col gap-3">
+                  <div>
+                    <Label htmlFor="lab-reg-name" className="text-xs text-muted-foreground">
+                      Lab Name
+                    </Label>
+                    <Input
+                      id="lab-reg-name"
+                      type="text"
+                      placeholder="My Laboratory"
+                      value={labRegName}
+                      onChange={(e) => setLabRegName(e.target.value)}
+                      className="mt-1 border-border bg-secondary text-foreground"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lab-reg-email" className="text-xs text-muted-foreground">
+                      Email
+                    </Label>
+                    <Input
+                      id="lab-reg-email"
+                      type="email"
+                      placeholder="admin@lab.com"
+                      value={labRegEmail}
+                      onChange={(e) => setLabRegEmail(e.target.value)}
+                      className="mt-1 border-border bg-secondary text-foreground"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lab-reg-pass" className="text-xs text-muted-foreground">
+                      Password
+                    </Label>
+                    <Input
+                      id="lab-reg-pass"
+                      type="password"
+                      placeholder="Create password"
+                      value={labRegPassword}
+                      onChange={(e) => setLabRegPassword(e.target.value)}
+                      className="mt-1 border-border bg-secondary text-foreground"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lab-reg-wallet" className="text-xs text-muted-foreground">
+                      Wallet Address
+                    </Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        id="lab-reg-wallet"
+                        type="text"
+                        placeholder="0x..."
+                        value={labRegWallet}
+                        onChange={(e) => setLabRegWallet(e.target.value)}
+                        className="border-border bg-secondary text-foreground flex-1"
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => connectWalletForRegistration(setLabRegWallet)}
+                        className="border-chart-2/30 text-chart-2 hover:bg-chart-2/10 shrink-0 text-xs"
+                      >
+                        <Wallet className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="bg-emerald-600 text-white hover:bg-emerald-700"
+                  >
+                    {loading ? "Submitting..." : "Register as Lab"}
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    Registration requires majority vote approval from existing lab members via blockchain
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setLabView("buttons")}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    ← Back
+                  </Button>
                 </form>
               )}
             </div>
@@ -305,13 +554,13 @@ export function LandingPage() {
               </div>
               <h3 className="mb-2 text-xl font-bold text-foreground">Research Portal</h3>
               <p className="mb-6 text-sm text-muted-foreground">
-                Login via email/password or connect MetaMask to search and request data access.
+                Login, connect MetaMask, or register as a new researcher.
               </p>
-              {!showResearcherLogin ? (
+              {resView === "buttons" ? (
                 <div className="flex flex-col gap-2">
                   <Button
                     variant="outline"
-                    onClick={() => setShowResearcherLogin(true)}
+                    onClick={() => { setResView("login"); setError(null); setSuccessMessage(null) }}
                     className="w-full border-chart-3/30 text-chart-3 hover:bg-chart-3/10"
                   >
                     <Microscope className="mr-2 h-4 w-4" />
@@ -326,8 +575,16 @@ export function LandingPage() {
                     <Wallet className="mr-2 h-4 w-4" />
                     Connect MetaMask (Researcher)
                   </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setResView("register"); setError(null); setSuccessMessage(null) }}
+                    className="w-full border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Register as Researcher
+                  </Button>
                 </div>
-              ) : (
+              ) : resView === "login" ? (
                 <form onSubmit={handleResearcherLogin} className="flex flex-col gap-3">
                   <div>
                     <Label htmlFor="res-email" className="text-xs text-muted-foreground">
@@ -373,6 +630,116 @@ export function LandingPage() {
                   >
                     <Wallet className="mr-2 h-4 w-4" />
                     Or Connect MetaMask
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setResView("buttons")}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    ← Back
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleResearcherRegister} className="flex flex-col gap-3">
+                  <div>
+                    <Label htmlFor="res-reg-name" className="text-xs text-muted-foreground">
+                      Full Name
+                    </Label>
+                    <Input
+                      id="res-reg-name"
+                      type="text"
+                      placeholder="Dr. Jane Smith"
+                      value={resRegName}
+                      onChange={(e) => setResRegName(e.target.value)}
+                      className="mt-1 border-border bg-secondary text-foreground"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="res-reg-institution" className="text-xs text-muted-foreground">
+                      Institution
+                    </Label>
+                    <Input
+                      id="res-reg-institution"
+                      type="text"
+                      placeholder="MIT, Stanford, etc."
+                      value={resRegInstitution}
+                      onChange={(e) => setResRegInstitution(e.target.value)}
+                      className="mt-1 border-border bg-secondary text-foreground"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="res-reg-email" className="text-xs text-muted-foreground">
+                      Email
+                    </Label>
+                    <Input
+                      id="res-reg-email"
+                      type="email"
+                      placeholder="researcher@uni.edu"
+                      value={resRegEmail}
+                      onChange={(e) => setResRegEmail(e.target.value)}
+                      className="mt-1 border-border bg-secondary text-foreground"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="res-reg-pass" className="text-xs text-muted-foreground">
+                      Password
+                    </Label>
+                    <Input
+                      id="res-reg-pass"
+                      type="password"
+                      placeholder="Create password"
+                      value={resRegPassword}
+                      onChange={(e) => setResRegPassword(e.target.value)}
+                      className="mt-1 border-border bg-secondary text-foreground"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="res-reg-wallet" className="text-xs text-muted-foreground">
+                      Wallet Address
+                    </Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        id="res-reg-wallet"
+                        type="text"
+                        placeholder="0x..."
+                        value={resRegWallet}
+                        onChange={(e) => setResRegWallet(e.target.value)}
+                        className="border-border bg-secondary text-foreground flex-1"
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => connectWalletForRegistration(setResRegWallet)}
+                        className="border-chart-3/30 text-chart-3 hover:bg-chart-3/10 shrink-0 text-xs"
+                      >
+                        <Wallet className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="bg-emerald-600 text-white hover:bg-emerald-700"
+                  >
+                    {loading ? "Submitting..." : "Register as Researcher"}
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    Registration requires majority vote approval from existing researchers via blockchain
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setResView("buttons")}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    ← Back
                   </Button>
                 </form>
               )}

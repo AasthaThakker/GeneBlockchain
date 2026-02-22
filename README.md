@@ -288,6 +288,47 @@ The `GenShareRegistry.sol` contract implements four core features:
 - **Function:** `registerRole(account, role)`
 - Owner-only role assignment (Patient, Lab, Researcher)
 
+### 5. Registration Voting System
+- **Functions:** `proposeRegistration()` / `voteOnRegistration()` / `finalizeRegistration()`
+- **Events:** `RegistrationProposed` / `RegistrationVoted` / `RegistrationApproved` / `RegistrationRejected`
+- New Labs and Researchers self-register via the Access Portal
+- Existing members of the same role vote on-chain (>50% majority required)
+- **Bootstrap:** First member of a role is auto-approved by the contract owner
+
+#### Registration Flow
+
+```mermaid
+sequenceDiagram
+    participant A as Applicant
+    participant FE as Frontend
+    participant API as Backend API
+    participant BC as Smart Contract
+    participant DB as MongoDB
+    participant V as Existing Members
+
+    A->>FE: Fill registration form
+    FE->>API: POST /api/auth/register
+    API->>BC: proposeRegistration()
+    BC-->>API: proposalId + autoApproved?
+    API->>DB: Save RegistrationRequest
+    alt No existing members (bootstrap)
+        BC->>BC: Auto-approve & registerRole()
+        API->>DB: Create User + Lab/Researcher
+        API-->>FE: "Approved! You can log in now"
+    else Existing members
+        API-->>FE: "Submitted. Awaiting votes."
+        V->>FE: View /lab/registrations
+        FE->>API: GET /api/registration-requests
+        V->>FE: Click Approve/Reject
+        FE->>API: POST /api/registration-requests/vote
+        API->>BC: voteOnRegistration()
+        alt Majority reached
+            BC->>BC: registerRole() for applicant
+            API->>DB: Create User + Lab/Researcher
+        end
+    end
+```
+
 > **Privacy:** Only PIDs, hashes, and consent logic are stored on-chain. No personally identifiable information (PII).
 
 ---
