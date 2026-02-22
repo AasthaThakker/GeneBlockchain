@@ -1,5 +1,4 @@
-# GeneBlockchain
-
+# GenShare — Blockchain-Based Genomic Data Sharing Platform
 A decentralized platform for secure, auditable, and consent-driven exchange of genomic datasets between patients, laboratories, and researchers using blockchain smart contracts.
 
 **Built with:** Next.js · MongoDB · Solidity (Hardhat) · Ethers.js · Tailwind CSS
