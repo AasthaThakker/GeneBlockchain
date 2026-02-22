@@ -248,6 +248,9 @@ export function LandingPage() {
               <a href="/features" className="text-sm font-medium hover:text-primary transition-colors">
                 Features
               </a>
+              <a href="/explorer" className="text-sm font-medium hover:text-primary transition-colors">
+                Explorer
+              </a>
               <a href="#roles" className="text-sm font-medium hover:text-primary transition-colors">
                 Access Portal
               </a>
