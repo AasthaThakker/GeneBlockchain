@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +12,21 @@ import { Shield, Wallet, Bell } from "lucide-react"
 export default function PatientSettings() {
   const { walletAddress, pid } = useAuth()
   const patientPid = pid || (walletAddress ? `PID-${walletAddress.slice(2, 8)}` : '')
+  const [registrationDate, setRegistrationDate] = useState<string>("Loading...")
+
+  useEffect(() => {
+    if (!walletAddress) return
+    fetch(`/api/users/me?walletAddress=${walletAddress}&role=PATIENT`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.user?.createdAt) {
+          setRegistrationDate(new Date(data.user.createdAt).toLocaleDateString())
+        } else {
+          setRegistrationDate("N/A")
+        }
+      })
+      .catch(() => setRegistrationDate("N/A"))
+  }, [walletAddress])
 
   return (
     <DashboardShell role="patient">
@@ -33,7 +49,7 @@ export default function PatientSettings() {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Registration Date</Label>
-              <Input value={new Date().toLocaleDateString()} readOnly className="mt-1 border-border bg-secondary text-foreground" />
+              <Input value={registrationDate} readOnly className="mt-1 border-border bg-secondary text-foreground" />
             </div>
           </div>
         </div>
@@ -49,7 +65,7 @@ export default function PatientSettings() {
             <Input value={walletAddress || ''} readOnly className="mt-1 border-border bg-secondary font-mono text-foreground" />
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Network: Ethereum Sepolia Testnet (Chain ID: 11155111)
+            Network: Hardhat Local Network (Chain ID: 31337)
           </p>
         </div>
 
@@ -91,3 +107,4 @@ export default function PatientSettings() {
     </DashboardShell>
   )
 }
+

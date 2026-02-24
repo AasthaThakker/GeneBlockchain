@@ -25,7 +25,7 @@ const CONTRACT_ABI = [
 
     // Registration Voting
     "function proposeRegistration(address _applicant, uint8 _role, uint256 _votingDays) external returns (uint256)",
-    "function voteOnRegistration(uint256 _proposalId, bool _approve) external",
+    "function voteOnRegistration(uint256 _proposalId, bool _approve, address _voter) external",
     "function finalizeRegistration(uint256 _proposalId) external",
     "function getProposal(uint256 _proposalId) external view returns (address applicant, uint8 requestedRole, uint256 approveCount, uint256 rejectCount, uint256 deadline, uint8 status)",
     "function proposalCount() external view returns (uint256)",
@@ -207,6 +207,7 @@ export async function proposeRegistrationOnChain(
     votingDays: number = 7
 ): Promise<{ txHash: string; proposalId: number; autoApproved: boolean }> {
     const contract = getContract();
+    console.log(`[Blockchain] Calling proposeRegistration with applicant: ${applicantAddress}`);
     const tx = await contract.proposeRegistration(applicantAddress, role, votingDays);
     const receipt = await tx.wait();
 
@@ -242,10 +243,11 @@ export async function proposeRegistrationOnChain(
  */
 export async function voteOnRegistrationOnChain(
     proposalId: number,
-    approve: boolean
+    approve: boolean,
+    voterAddress: string
 ): Promise<{ txHash: string; resolved: boolean; approved: boolean }> {
     const contract = getContract();
-    const tx = await contract.voteOnRegistration(proposalId, approve);
+    const tx = await contract.voteOnRegistration(proposalId, approve, voterAddress);
     const receipt = await tx.wait();
 
     const resolvedEvent = receipt.logs

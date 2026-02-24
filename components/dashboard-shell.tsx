@@ -140,7 +140,7 @@ export function DashboardShell({
           {/* Network Status */}
           <div className="mb-3 flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2">
             <Wifi className="h-3.5 w-3.5 text-success" />
-            <span className="text-xs text-sidebar-foreground/70">Sepolia Testnet</span>
+            <span className="text-xs text-sidebar-foreground/70">Hardhat Local</span>
           </div>
 
           {/* Wallet */}

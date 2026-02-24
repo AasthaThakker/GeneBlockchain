@@ -210,19 +210,25 @@ contract GenShareRegistry {
     }
 
     /**
-     * @notice Vote on a registration proposal
+     * @notice Vote on a registration proposal. Can be called directly or relayed by owner.
      * @param _proposalId ID of the proposal
      * @param _approve true = approve, false = reject
+     * @param _voter The actual voter (must match msg.sender unless owner is relaying)
      */
-    function voteOnRegistration(uint256 _proposalId, bool _approve) external {
+    function voteOnRegistration(uint256 _proposalId, bool _approve, address _voter) external {
         RegistrationProposal storage p = proposals[_proposalId];
         require(p.exists, "Proposal does not exist");
         require(p.status == ProposalStatus.Pending, "Proposal already resolved");
         require(block.timestamp <= p.deadline, "Voting period ended");
-        require(roles[msg.sender] == p.requestedRole, "Must hold same role to vote");
-        require(!hasVoted[_proposalId][msg.sender], "Already voted");
+        
+        // Authorization: Either voter is msg.sender, or owner is relaying
+        require(msg.sender == _voter || msg.sender == owner, "Unauthorized to vote for this address");
+        
+        // Role check on the actual voter
+        require(roles[_voter] == p.requestedRole, "Must hold same role to vote");
+        require(!hasVoted[_proposalId][_voter], "Already voted");
 
-        hasVoted[_proposalId][msg.sender] = true;
+        hasVoted[_proposalId][_voter] = true;
 
         if (_approve) {
             p.approveCount++;
@@ -230,7 +236,7 @@ contract GenShareRegistry {
             p.rejectCount++;
         }
 
-        emit RegistrationVoted(_proposalId, msg.sender, _approve);
+        emit RegistrationVoted(_proposalId, _voter, _approve);
 
         // Check if majority already reached (early finalization)
         uint256 totalMembers = memberCount[uint8(p.requestedRole)];

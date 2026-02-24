@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
         const roleEnum = userRole === 'LAB' ? 2 : 3
 
         // Propose registration on-chain
+        console.log(`[Register] Proposing registration for: ${walletLower} (Role: ${userRole})`);
         let proposalResult
         try {
             proposalResult = await proposeRegistrationOnChain(walletLower, roleEnum, VOTING_DAYS)
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
                 password: hashedPassword,
                 role: userRole,
                 walletAddress: walletLower,
-                isAdmin: false,
+                isAdmin: true,
                 displayName: name,
                 labId: userRole === 'LAB' ? roleId : undefined,
                 researcherId: userRole === 'RESEARCHER' ? roleId : undefined,

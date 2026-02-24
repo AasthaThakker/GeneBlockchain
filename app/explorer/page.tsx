@@ -282,8 +282,8 @@ export default function ExplorerPage() {
                                         key={tab.key}
                                         onClick={() => setActiveTab(tab.key)}
                                         className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.key
-                                                ? "border-primary text-primary"
-                                                : "border-transparent text-muted-foreground hover:text-foreground"
+                                            ? "border-primary text-primary"
+                                            : "border-transparent text-muted-foreground hover:text-foreground"
                                             }`}
                                     >
                                         {tab.label}
@@ -516,7 +516,7 @@ export default function ExplorerPage() {
                         A Blockchain-Based Genomic Data Sharing Platform
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                        Ethereum Sepolia Testnet | IPFS Off-Chain Storage | HIPAA/GDPR Aligned
+                        Ethereum Hardhat Local Network | IPFS Off-Chain Storage | HIPAA/GDPR Aligned
                     </p>
                 </div>
             </footer>

@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         // Cast vote on-chain
         let voteResult
         try {
-            voteResult = await voteOnRegistrationOnChain(proposalId, approve)
+            voteResult = await voteOnRegistrationOnChain(proposalId, approve, voterLower)
         } catch (blockchainError: unknown) {
             const err = blockchainError as { message?: string }
             console.error('[Vote] Blockchain error:', err.message)
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
                     password: regRequest.password, // Already hashed
                     role: regRequest.role,
                     walletAddress: regRequest.applicantAddress,
-                    isAdmin: false,
+                    isAdmin: true,
                     displayName: regRequest.name,
                     labId: regRequest.role === 'LAB' ? roleId : undefined,
                     researcherId: regRequest.role === 'RESEARCHER' ? roleId : undefined,

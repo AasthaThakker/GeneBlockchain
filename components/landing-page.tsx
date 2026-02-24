@@ -764,7 +764,7 @@ export function LandingPage() {
             A Blockchain-Based Genomic Data Sharing Platform
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Ethereum Sepolia Testnet | IPFS Off-Chain Storage | HIPAA/GDPR Aligned
+            Ethereum Hardhat Local Network | IPFS Off-Chain Storage | HIPAA/GDPR Aligned
           </p>
         </div>
       </footer>
