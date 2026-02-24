@@ -23,6 +23,7 @@ import {
   Wifi,
   Users,
   UserPlus,
+  HardDrive,
   type LucideIcon,
 } from "lucide-react"
 import { type ReactNode, useEffect } from "react"
@@ -47,6 +48,7 @@ const navMap: Record<NonNullable<UserRole>, NavItem[]> = {
   lab: [
     { label: "Dashboard", href: "/lab", icon: LayoutDashboard },
     { label: "Upload VCF/FASTA", href: "/lab/upload", icon: Upload },
+    { label: "IPFS Files", href: "/lab/files", icon: HardDrive },
     { label: "Registered Records", href: "/lab/records", icon: FileText },
     { label: "Integrity Check", href: "/lab/integrity", icon: CheckCircle2 },
     { label: "Audit Logs", href: "/lab/audit", icon: ScrollText },

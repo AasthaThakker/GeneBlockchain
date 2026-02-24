@@ -38,6 +38,10 @@ export async function POST(request: NextRequest) {
           displayName = (lab as Record<string, unknown>).name as string
           matchedEmail = (lab as Record<string, unknown>).email as string
           console.log(`[Auth Connect] Matched Lab: ${labId} - ${displayName}`)
+        } else {
+          return NextResponse.json({
+            error: 'No lab found for this wallet address. Please register as a Lab first.'
+          }, { status: 403 })
         }
       } else if (userRole === 'RESEARCHER') {
         const researcher = await Researcher.findOne({ walletAddress: walletLower }).lean()
@@ -46,6 +50,10 @@ export async function POST(request: NextRequest) {
           displayName = (researcher as Record<string, unknown>).name as string
           matchedEmail = (researcher as Record<string, unknown>).email as string
           console.log(`[Auth Connect] Matched Researcher: ${researcherId} - ${displayName}`)
+        } else {
+          return NextResponse.json({
+            error: 'No researcher found for this wallet address. Please register as a Researcher first.'
+          }, { status: 403 })
         }
       }
 

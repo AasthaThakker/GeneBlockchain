@@ -31,6 +31,14 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Validate proposalId is not -1 (invalid blockchain proposal)
+        if (proposalId === -1) {
+            return NextResponse.json(
+                { error: 'Invalid proposal ID: Blockchain proposal creation failed. Please contact the applicant to resubmit registration.' },
+                { status: 400 }
+            )
+        }
+
         if (regRequest.status !== 'pending') {
             return NextResponse.json(
                 { error: `This registration has already been ${regRequest.status}` },

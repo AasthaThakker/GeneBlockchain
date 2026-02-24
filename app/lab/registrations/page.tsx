@@ -71,6 +71,16 @@ export default function LabRegistrationsPage() {
             setError("Please connect your wallet to vote")
             return
         }
+        
+        // Log the vote action in JSON format
+        console.log(JSON.stringify({
+            action: "vote",
+            proposalId,
+            approve,
+            voterWallet: walletAddress,
+            timestamp: new Date().toISOString()
+        }))
+        
         setVotingId(`${proposalId}-${approve ? "approve" : "reject"}`)
         setError(null)
         setSuccess(null)

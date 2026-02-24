@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { SearchableRecord } from "@/lib/types"
 import { Search, Filter } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export default function ResearcherSearch() {
+  const router = useRouter()
   const [query, setQuery] = useState("")
   const [allRecords, setAllRecords] = useState<SearchableRecord[]>([])
   const [results, setResults] = useState<SearchableRecord[]>([])
@@ -103,7 +105,7 @@ export default function ResearcherSearch() {
                 size="sm"
                 variant="outline"
                 className="border-primary/30 text-primary hover:bg-primary/10"
-                onClick={() => (window.location.href = `/researcher/request?dataset=${record.id}&pid=${record.pid}`)}
+                onClick={() => router.push(`/researcher/requests?dataset=${record.id}&pid=${record.pid}`)}
               >
                 Request Access
               </Button>
