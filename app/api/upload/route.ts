@@ -11,15 +11,17 @@ let ipfsFunctions: {
 
 // Try to load IPFS functions
 try {
-  const ipfsModule = require('@/lib/ipfs-cli')
+  const ipfsModule = require('@/lib/ipfs-http.js')
   ipfsFunctions = {
     uploadToIPFS: ipfsModule.uploadToIPFS,
     checkIPFSAvailability: ipfsModule.checkIPFSAvailability,
     pinToIPFS: ipfsModule.pinToIPFS,
     downloadFromIPFS: ipfsModule.downloadFromIPFS
   }
+  console.log('✅ IPFS HTTP module loaded successfully')
 } catch (error) {
-  console.warn('IPFS CLI module not available. Please install IPFS daemon and ensure it is running.')
+  console.warn('IPFS HTTP module not available. Please install IPFS daemon and ensure it is running on port 5001.')
+  console.error('Module loading error:', error)
 }
 
 export async function POST(request: NextRequest) {
@@ -73,8 +75,8 @@ export async function POST(request: NextRequest) {
     } else {
       return NextResponse.json({ 
         error: 'IPFS not available',
-        message: 'IPFS daemon not running or not installed',
-        suggestion: '1. Install IPFS: Download from https://dist.ipfs.tech/kubo/v0.28.0/kubo_v0.28.0_windows-amd64.zip\n2. Add to PATH\n3. Run: ipfs init\n4. Run: ipfs daemon'
+        message: 'IPFS daemon not running on port 5001',
+        suggestion: '1. Install IPFS: Download from https://dist.ipfs.tech/kubo/v0.28.0/kubo_v0.28.0_windows-amd64.zip\n2. Add to PATH\n3. Run: ipfs init\n4. Run: ipfs daemon --api 127.0.0.1:5001'
       }, { status: 503 })
     }
 
@@ -110,8 +112,8 @@ export async function GET(request: NextRequest) {
     if (!ipfsFunctions) {
       return NextResponse.json({ 
         error: 'IPFS not available',
-        message: 'IPFS client library not installed',
-        suggestion: 'Install IPFS client: npm install ipfs-http-client'
+        message: 'IPFS HTTP client not available',
+        suggestion: 'Ensure IPFS daemon is running on port 5001 and HTTP API is enabled'
       }, { status: 503 })
     }
 
