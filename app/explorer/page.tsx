@@ -170,7 +170,7 @@ export default function ExplorerPage() {
     const tabs: { key: TabKey; label: string; count: number }[] = [
         { key: "blocks", label: "Blocks", count: blocks.length },
         { key: "events", label: "Event Log", count: events.length },
-        { key: "records", label: "Genomic Records", count: records.length },
+        { key: "records", label: "On-Chain Records", count: stats?.totalRecords || 0 },
         { key: "consents", label: "Consents", count: consents.length },
         { key: "proposals", label: "Proposals", count: proposals.length },
     ]
@@ -274,7 +274,7 @@ export default function ExplorerPage() {
                         { label: "Total Blocks", value: blockNumber, icon: Blocks, color: "text-primary", bg: "bg-primary/10" },
                         { label: "Active Chains", value: 1, icon: Hash, color: "text-cyan-500", bg: "bg-cyan-500/10" },
                         { label: "On-Chain Records", value: stats?.totalRecords || 0, icon: FileText, color: "text-blue-500", bg: "bg-blue-500/10" },
-                        { label: "Verified Consents", value: stats?.totalConsents || 0, icon: ShieldCheck, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+                        { label: "Verified Consents", value: stats?.members.labs || 0, icon: ShieldCheck, color: "text-emerald-500", bg: "bg-emerald-500/10" },
                         { label: "Governance Proposals", value: stats?.totalProposals || 0, icon: Vote, color: "text-violet-500", bg: "bg-violet-500/10" },
                         { label: "Network Events", value: stats?.totalEvents || 0, icon: Activity, color: "text-amber-500", bg: "bg-amber-500/10" },
                     ].map((stat, i) => (

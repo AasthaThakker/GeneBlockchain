@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ethers } from 'ethers'
+import connectDB from '@/lib/mongodb'
+import { GenomicRecord } from '@/lib/models/GenomicRecord'
 
 const CONTRACT_ABI = [
     "function recordCount() external view returns (uint256)",
@@ -40,6 +42,8 @@ async function safeCall<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
 
 export async function GET() {
     try {
+        await connectDB()
+        const dbRecordCount = await GenomicRecord.countDocuments()
         const contract = getContract()
         const rpcUrl = process.env.RPC_URL || "http://127.0.0.1:8545"
         const provider = new ethers.JsonRpcProvider(rpcUrl)
@@ -179,7 +183,7 @@ export async function GET() {
             networkName,
             blocks,
             stats: {
-                totalRecords: recordCount,
+                totalRecords: dbRecordCount,
                 totalConsents: consentCount,
                 totalProposals: proposalCount,
                 members: { patients: patientCount, labs: labCount, researchers: researcherCount },
