@@ -52,7 +52,7 @@ const registrationRequestSchema = new Schema<IRegistrationRequest>({
     proposalId: {
         type: Number,
         required: true,
-        unique: true
+        // unique: true // Removed to allow multiple -1 states
     },
     status: {
         type: String,
@@ -77,7 +77,12 @@ const registrationRequestSchema = new Schema<IRegistrationRequest>({
     timestamps: true
 })
 
-registrationRequestSchema.index({ proposalId: 1 })
+// Ensures uniqueness for valid IDs but allows multiple -1 fallbacks
+registrationRequestSchema.index({ proposalId: 1 }, {
+    unique: true,
+    partialFilterExpression: { proposalId: { $gt: -1 } }
+})
+
 registrationRequestSchema.index({ status: 1 })
 registrationRequestSchema.index({ applicantAddress: 1 })
 registrationRequestSchema.index({ role: 1, status: 1 })

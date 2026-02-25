@@ -81,27 +81,33 @@ export async function registerGenomicData(
     const tx = await contract.registerGenomicData(pid, fileHash, ipfsCID);
     const receipt = await tx.wait();
 
-    // Parse the event to get the record index
-    const event = receipt.logs
-        .map((log: ethers.Log) => {
-            try {
-                return contract.interface.parseLog({ topics: [...log.topics], data: log.data });
-            } catch {
-                return null;
-            }
-        })
-        .find((e: ethers.LogDescription | null) => e?.name === "GenomicDataRegistered");
+    let recordIndex = -1;
 
-    const recordIndex = event ? Number(event.args.recordIndex) : -1;
-
-    // Fallback if event parsing failed but transaction was successful
-    if (recordIndex === -1 && receipt.logs && receipt.logs.length > 0) {
-        console.log('[Blockchain] Event parsing fallback triggered');
-        // The first 32 bytes of the first log's data is often the recordIndex for this contract
+    for (const log of receipt.logs) {
         try {
-            // This is a simplified fallback; real implementation would be more robust
-            // But usually parseLog works if ABI is correct
-        } catch (e) { }
+            const parsedLog = contract.interface.parseLog({
+                topics: [...log.topics],
+                data: log.data
+            });
+
+            if (parsedLog?.name === "GenomicDataRegistered") {
+                recordIndex = Number(parsedLog.args.recordIndex);
+                break;
+            }
+        } catch (e) {
+            continue;
+        }
+    }
+
+    if (recordIndex === -1) {
+        console.warn(`[Blockchain] Transaction ${receipt.hash} successful but GenomicDataRegistered event not found in logs. Using count fallback.`);
+        try {
+            const count = await contract.recordCount();
+            recordIndex = Number(count) - 1;
+            console.log(`[Blockchain] Fallback recordIndex: ${recordIndex}`);
+        } catch (e) {
+            console.error(`[Blockchain] Fallback failed:`, e);
+        }
     }
 
     return { txHash: receipt.hash, recordIndex };
@@ -144,7 +150,18 @@ export async function grantConsent(
         })
         .find((e: ethers.LogDescription | null) => e?.name === "ConsentGranted");
 
-    const consentIndex = event ? Number(event.args.consentIndex) : -1;
+    let consentIndex = event ? Number(event.args.consentIndex) : -1;
+
+    if (consentIndex === -1) {
+        console.warn(`[Blockchain] Transaction ${receipt.hash} successful but ConsentGranted event not found. Using count fallback.`);
+        try {
+            const count = await contract.consentCount();
+            consentIndex = Number(count) - 1;
+            console.log(`[Blockchain] Fallback consentIndex: ${consentIndex}`);
+        } catch (e) {
+            console.error(`[Blockchain] Fallback failed:`, e);
+        }
+    }
 
     return { txHash: receipt.hash, consentIndex };
 }
@@ -217,32 +234,54 @@ export async function proposeRegistrationOnChain(
     votingDays: number = 7
 ): Promise<{ txHash: string; proposalId: number; autoApproved: boolean }> {
     const contract = getContract();
+
+    // Centralized validation
+    if (!ethers.isAddress(applicantAddress)) {
+        throw new Error(`Invalid applicant address: '${applicantAddress}'. Must be a valid 0x hex address.`);
+    }
+
     console.log(`[Blockchain] Calling proposeRegistration with applicant: ${applicantAddress}`);
     const tx = await contract.proposeRegistration(applicantAddress, role, votingDays);
     const receipt = await tx.wait();
 
-    const proposedEvent = receipt.logs
-        .map((log: ethers.Log) => {
-            try {
-                return contract.interface.parseLog({ topics: [...log.topics], data: log.data });
-            } catch {
-                return null;
-            }
-        })
-        .find((e: ethers.LogDescription | null) => e?.name === "RegistrationProposed");
+    // In Ethers v6, we can use the contract interface to parse logs from the receipt
+    let proposalId = -1;
+    let autoApproved = false;
 
-    const approvedEvent = receipt.logs
-        .map((log: ethers.Log) => {
-            try {
-                return contract.interface.parseLog({ topics: [...log.topics], data: log.data });
-            } catch {
-                return null;
-            }
-        })
-        .find((e: ethers.LogDescription | null) => e?.name === "RegistrationApproved");
+    console.log(`[Blockchain] Tx receipt logs count: ${receipt.logs.length}`);
+    for (const log of receipt.logs) {
+        try {
+            const parsedLog = contract.interface.parseLog({
+                topics: [...log.topics],
+                data: log.data
+            });
 
-    const proposalId = proposedEvent ? Number(proposedEvent.args.proposalId) : -1;
-    const autoApproved = !!approvedEvent;
+            console.log(`[Blockchain] Parsed log name: ${parsedLog?.name}`);
+
+            if (parsedLog?.name === "RegistrationProposed") {
+                proposalId = Number(parsedLog.args.proposalId);
+                console.log(`[Blockchain] Found RegistrationProposed: ${proposalId}`);
+            }
+            if (parsedLog?.name === "RegistrationApproved") {
+                autoApproved = true;
+                console.log(`[Blockchain] Found RegistrationApproved`);
+            }
+        } catch (e) {
+            // Log might not belong to this contract, skip
+            continue;
+        }
+    }
+
+    if (proposalId === -1) {
+        console.warn(`[Blockchain] Transaction ${receipt.hash} successful but RegistrationProposed event not found in logs. Using count fallback.`);
+        try {
+            const count = await contract.proposalCount();
+            proposalId = Number(count) - 1;
+            console.log(`[Blockchain] Fallback proposalId: ${proposalId}`);
+        } catch (e) {
+            console.error(`[Blockchain] Fallback failed:`, e);
+        }
+    }
 
     return { txHash: receipt.hash, proposalId, autoApproved };
 }

@@ -27,6 +27,16 @@ import {
     AlertTriangle,
 } from "lucide-react"
 
+interface Block {
+    number: number
+    hash: string
+    timestamp: number
+    transactions: number
+    gasUsed: string
+    gasLimit: string
+    miner: string
+}
+
 interface Stats {
     totalRecords: number
     totalConsents: number
@@ -88,6 +98,7 @@ function truncateAddr(addr: string) {
 }
 
 function truncateHash(hash: string) {
+    if (!hash) return "—"
     return `${hash.slice(0, 10)}…${hash.slice(-6)}`
 }
 
@@ -97,37 +108,52 @@ function formatTimestamp(ts: number) {
     return d.toLocaleString()
 }
 
-type TabKey = "events" | "records" | "consents" | "proposals"
+function getTimeAgo(ts: number) {
+    const seconds = Math.floor(Date.now() / 1000 - ts)
+    if (seconds < 60) return `${seconds}s ago`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+    return `${Math.floor(seconds / 3600)}h ago`
+}
+
+type TabKey = "blocks" | "events" | "records" | "consents" | "proposals"
 
 export default function ExplorerPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [blockNumber, setBlockNumber] = useState(0)
+    const [gasPrice, setGasPrice] = useState("0")
+    const [chainId, setChainId] = useState<string | null>(null)
+    const [networkName, setNetworkName] = useState<string | null>(null)
+    const [blocks, setBlocks] = useState<Block[]>([])
     const [stats, setStats] = useState<Stats | null>(null)
     const [records, setRecords] = useState<GenomicRecord[]>([])
     const [consents, setConsents] = useState<Consent[]>([])
     const [proposals, setProposals] = useState<Proposal[]>([])
     const [events, setEvents] = useState<BlockchainEvent[]>([])
-    const [activeTab, setActiveTab] = useState<TabKey>("events")
+    const [activeTab, setActiveTab] = useState<TabKey>("blocks")
+    const [autoRefresh, setAutoRefresh] = useState(true)
 
-    const fetchData = useCallback(async () => {
-        setLoading(true)
-        setError(null)
+    const fetchData = useCallback(async (isAuto = false) => {
+        if (!isAuto) setLoading(true)
         try {
             const res = await fetch("/api/blockchain-explorer")
             const data = await res.json()
             if (!res.ok) throw new Error(data.error)
             setBlockNumber(data.blockNumber)
+            setGasPrice(data.gasPrice)
+            setChainId(data.chainId)
+            setNetworkName(data.networkName)
+            setBlocks(data.blocks || [])
             setStats(data.stats)
             setRecords(data.records || [])
             setConsents(data.consents || [])
             setProposals(data.proposals || [])
-            setEvents((data.events || []).reverse()) // newest first
+            setEvents((data.events || []).reverse())
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load blockchain data")
+            if (!isAuto) setError(err instanceof Error ? err.message : "Failed to load blockchain data")
         } finally {
-            setLoading(false)
+            if (!isAuto) setLoading(false)
         }
     }, [])
 
@@ -135,7 +161,14 @@ export default function ExplorerPage() {
         fetchData()
     }, [fetchData])
 
+    useEffect(() => {
+        if (!autoRefresh) return
+        const interval = setInterval(() => fetchData(true), 5000)
+        return () => clearInterval(interval)
+    }, [autoRefresh, fetchData])
+
     const tabs: { key: TabKey; label: string; count: number }[] = [
+        { key: "blocks", label: "Blocks", count: blocks.length },
         { key: "events", label: "Event Log", count: events.length },
         { key: "records", label: "Genomic Records", count: records.length },
         { key: "consents", label: "Consents", count: consents.length },
@@ -143,381 +176,441 @@ export default function ExplorerPage() {
     ]
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background selection:bg-primary/20">
             {/* Header */}
-            <header className="border-b border-border/50 backdrop-blur-sm sticky top-0 z-50 bg-background/80">
+            <header className="border-b border-border/50 backdrop-blur-md sticky top-0 z-50 bg-background/80">
                 <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
                     <button
                         onClick={() => router.push("/")}
                         className="flex items-center gap-3 transition-opacity hover:opacity-80"
                     >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/20">
-                            <Dna className="h-5 w-5 text-primary" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 shadow-sm shadow-primary/20">
+                            <Dna className="h-6 w-6 text-primary" />
                         </div>
-                        <span className="text-xl font-bold text-foreground">GenShare</span>
+                        <span className="text-2xl font-black tracking-tight text-foreground bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">GenShare</span>
                     </button>
 
-                    <div className="flex items-center gap-4">
-                        <ThemeToggle />
-                        <nav className="hidden md:flex items-center gap-6">
-                            <a href="/features" className="text-sm font-medium hover:text-primary transition-colors">
-                                Features
-                            </a>
-                            <a href="/explorer" className="text-sm font-medium text-primary transition-colors">
-                                Explorer
-                            </a>
-                            <a href="/#roles" className="text-sm font-medium hover:text-primary transition-colors">
-                                Access Portal
-                            </a>
+                    <div className="flex items-center gap-6">
+                        <nav className="hidden lg:flex items-center gap-8">
+                            <a href="/features" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors">Features</a>
+                            <a href="/explorer" className="text-sm font-semibold text-primary transition-colors">Explorer</a>
+                            <a href="/#roles" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors">Access Portal</a>
                         </nav>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => router.push("/")}
-                            className="gap-2 border-border text-foreground md:hidden"
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                            Home
-                        </Button>
+                        <div className="h-6 w-px bg-border/50 hidden lg:block" />
+                        <div className="flex items-center gap-3">
+                            <ThemeToggle />
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.push("/")}
+                                className="gap-2 border-border text-foreground hidden sm:flex font-semibold"
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                                Home
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </header>
 
             <main className="mx-auto max-w-7xl px-6 py-12">
-                {/* Page Title */}
-                <div className="flex items-center justify-between mb-8">
+                {/* Page Title & Status */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
                     <div>
-                        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                            <Blocks className="h-8 w-8 text-primary" />
-                            Blockchain Explorer
+                        <div className="flex items-center gap-3 mb-2">
+                            <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary border border-primary/20 animate-in fade-in slide-in-from-left-4">
+                                LIVE NETWORK
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                                <Activity className="h-3.5 w-3.5 text-success animate-pulse" />
+                                <span className="text-xs font-medium text-success uppercase tracking-widest">Healthy</span>
+                            </div>
+                        </div>
+                        <h1 className="text-4xl font-extrabold text-foreground tracking-tight flex items-center gap-4">
+                            Blockchain <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-8">Explorer</span>
                         </h1>
-                        <p className="mt-2 text-muted-foreground">
-                            Real-time visualization of all on-chain transactions and contract state
-                        </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="hidden sm:flex items-center gap-2 rounded-lg border border-border/50 bg-card px-4 py-2">
-                            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-sm text-muted-foreground">Block</span>
-                            <span className="font-mono text-sm font-semibold text-foreground">#{blockNumber}</span>
+
+                    <div className="flex flex-wrap items-center gap-3 bg-secondary/30 p-1 rounded-2xl border border-border/50">
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-background shadow-sm border border-border/50">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{networkName || "Network"}</span>
+                            <span className="font-mono text-sm font-black text-foreground">
+                                ID: {chainId || "—"}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-background shadow-sm border border-border/50">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Base Fee</span>
+                            <span className="font-mono text-sm font-black text-foreground">
+                                {gasPrice !== "0" ? `${Math.round(Number(gasPrice) / 1e9)}` : "—"} <span className="text-[10px] text-muted-foreground uppercase">Gwei</span>
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 px-4 py-2">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Syncing</span>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setAutoRefresh(!autoRefresh)}
+                                className={`h-6 px-2 rounded-lg text-[10px] font-bold uppercase transition-all ${autoRefresh ? "bg-success/10 text-success hover:bg-success/20" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                            >
+                                {autoRefresh ? "Enabled" : "Disabled"}
+                            </Button>
                         </div>
                         <Button
-                            variant="outline"
+                            variant="default"
                             size="sm"
-                            onClick={fetchData}
+                            onClick={() => fetchData()}
                             disabled={loading}
-                            className="gap-2"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 rounded-xl font-bold shadow-lg shadow-primary/20"
                         >
-                            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                            Refresh
+                            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                            Sync
                         </Button>
                     </div>
                 </div>
 
-                {error && (
-                    <div className="mb-8 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                        {error}
-                    </div>
-                )}
-
-                {loading && !stats ? (
-                    <div className="flex flex-col items-center justify-center py-24">
-                        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-                        <p className="text-muted-foreground">Loading blockchain state…</p>
-                    </div>
-                ) : stats ? (
-                    <>
-                        {/* Stats Cards */}
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-10">
-                            {[
-                                { label: "Genomic Records", value: stats.totalRecords, icon: FileText, color: "text-blue-500", bg: "bg-blue-500/10" },
-                                { label: "Consents", value: stats.totalConsents, icon: ShieldCheck, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-                                { label: "Proposals", value: stats.totalProposals, icon: Vote, color: "text-violet-500", bg: "bg-violet-500/10" },
-                                { label: "Total Events", value: stats.totalEvents, icon: Activity, color: "text-amber-500", bg: "bg-amber-500/10" },
-                                { label: "Members", value: stats.members.patients + stats.members.labs + stats.members.researchers, icon: Users, color: "text-cyan-500", bg: "bg-cyan-500/10" },
-                            ].map((stat) => (
-                                <div key={stat.label} className="rounded-xl border border-border/50 bg-card p-5">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{stat.label}</span>
-                                        <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${stat.bg}`}>
-                                            <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                                        </div>
-                                    </div>
-                                    <div className="text-3xl font-bold text-foreground">{stat.value}</div>
+                {/* Network Stats - Compact Row */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-10">
+                    {[
+                        { label: "Total Blocks", value: blockNumber, icon: Blocks, color: "text-primary", bg: "bg-primary/10" },
+                        { label: "Active Chains", value: 1, icon: Hash, color: "text-cyan-500", bg: "bg-cyan-500/10" },
+                        { label: "On-Chain Records", value: stats?.totalRecords || 0, icon: FileText, color: "text-blue-500", bg: "bg-blue-500/10" },
+                        { label: "Verified Consents", value: stats?.totalConsents || 0, icon: ShieldCheck, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+                        { label: "Governance Proposals", value: stats?.totalProposals || 0, icon: Vote, color: "text-violet-500", bg: "bg-violet-500/10" },
+                        { label: "Network Events", value: stats?.totalEvents || 0, icon: Activity, color: "text-amber-500", bg: "bg-amber-500/10" },
+                    ].map((stat, i) => (
+                        <div key={stat.label} className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-5 transition-all hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.bg} group-hover:scale-110 transition-transform`}>
+                                    <stat.icon className={`h-5 w-5 ${stat.color}`} />
                                 </div>
-                            ))}
+                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{i + 1}</span>
+                            </div>
+                            <div className="text-3xl font-black text-foreground tabular-nums tracking-tighter mb-1">{stat.value}</div>
+                            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{stat.label}</div>
                         </div>
+                    ))}
+                </div>
 
-                        {/* Member Breakdown */}
-                        <div className="rounded-xl border border-border/50 bg-card p-6 mb-10">
-                            <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-4">Registered Members by Role</h3>
-                            <div className="grid grid-cols-3 gap-4">
-                                {[
-                                    { role: "Patients", count: stats.members.patients, color: "bg-primary" },
-                                    { role: "Labs", count: stats.members.labs, color: "bg-chart-2" },
-                                    { role: "Researchers", count: stats.members.researchers, color: "bg-chart-3" },
-                                ].map((m) => {
-                                    const total = stats.members.patients + stats.members.labs + stats.members.researchers
-                                    const pct = total > 0 ? Math.round((m.count / total) * 100) : 0
-                                    return (
-                                        <div key={m.role} className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm font-medium text-foreground">{m.role}</span>
-                                                <span className="text-sm text-muted-foreground">{m.count}</span>
-                                            </div>
-                                            <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                                                <div className={`h-full rounded-full ${m.color} transition-all`} style={{ width: `${pct}%` }} />
+                {/* Visual Blockchain View */}
+                <div className="mb-10 group">
+                    <div className="flex items-center justify-between mb-4 px-2">
+                        <div className="flex items-center gap-2">
+                            <Blocks className="h-5 w-5 text-primary" />
+                            <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Block Chain Visualization</h2>
+                        </div>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase opacity-0 group-hover:opacity-100 transition-opacity">Auto-updating every 5s</span>
+                    </div>
+                    <div className="relative flex items-center gap-4 overflow-x-auto pb-6 pt-2 no-scrollbar px-2 mask-linear-fade">
+                        {blocks.map((block, i) => (
+                            <div key={block.number} className="flex items-center gap-4 shrink-0 animate-in fade-in slide-in-from-right-8" style={{ animationDelay: `${i * 100}ms` }}>
+                                <div className={`flex flex-col w-48 rounded-2xl border-2 p-4 transition-all hover:scale-105 hover:shadow-2xl ${i === 0 ? "border-primary bg-primary/5 shadow-primary/10" : "border-border/50 bg-card hover:border-primary/30"}`}>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className={`text-[10px] font-black tracking-widest uppercase ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
+                                            {i === 0 ? "Newest Block" : `Block #${block.number}`}
+                                        </span>
+                                        <div className={`h-2.5 w-2.5 rounded-full ${i === 0 ? "bg-primary animate-pulse" : "bg-muted-foreground/30"}`} />
+                                    </div>
+                                    <div className="font-mono text-sm font-bold text-foreground mb-1 truncate">#{block.number}</div>
+                                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-4">
+                                        <Clock className="h-3 w-3" />
+                                        <span>{getTimeAgo(block.timestamp)}</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 mt-auto">
+                                        <div className="rounded-lg bg-secondary/50 p-2 text-center">
+                                            <div className="text-[9px] font-black text-muted-foreground uppercase leading-none mb-1">TXs</div>
+                                            <div className="text-xs font-black text-foreground leading-none">{block.transactions}</div>
+                                        </div>
+                                        <div className="rounded-lg bg-secondary/50 p-2 text-center">
+                                            <div className="text-[9px] font-black text-muted-foreground uppercase leading-none mb-1">Gas</div>
+                                            <div className="text-xs font-black text-foreground leading-none">
+                                                {Math.round(Number(block.gasUsed) / 1e6)}M
                                             </div>
                                         </div>
-                                    )
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Tabs */}
-                        <div className="border-b border-border/50 mb-6">
-                            <div className="flex gap-0">
-                                {tabs.map((tab) => (
-                                    <button
-                                        key={tab.key}
-                                        onClick={() => setActiveTab(tab.key)}
-                                        className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.key
-                                            ? "border-primary text-primary"
-                                            : "border-transparent text-muted-foreground hover:text-foreground"
-                                            }`}
-                                    >
-                                        {tab.label}
-                                        <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-xs font-mono">
-                                            {tab.count}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Tab Content */}
-                        {activeTab === "events" && (
-                            <div className="space-y-2">
-                                {events.length === 0 ? (
-                                    <div className="rounded-xl border border-border/50 bg-card p-12 text-center">
-                                        <Activity className="mx-auto h-12 w-12 text-muted-foreground/30" />
-                                        <p className="mt-4 text-foreground font-medium">No Events</p>
-                                        <p className="text-sm text-muted-foreground">No blockchain events have been emitted yet.</p>
                                     </div>
-                                ) : (
-                                    events.map((evt, i) => {
-                                        const config = EVENT_CONFIG[evt.name] || { icon: Activity, color: "text-muted-foreground", label: evt.name }
-                                        const Icon = config.icon
-                                        return (
-                                            <div key={i} className="rounded-lg border border-border/50 bg-card px-5 py-4 flex items-start gap-4 hover:border-border transition-colors">
-                                                <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.color.replace('text-', 'bg-')}/10`}>
-                                                    <Icon className={`h-4 w-4 ${config.color}`} />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-3 mb-1">
-                                                        <span className={`text-sm font-semibold ${config.color}`}>{config.label}</span>
-                                                        <span className="text-xs text-muted-foreground font-mono">Block #{evt.blockNumber}</span>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-x-4 gap-y-1">
-                                                        {Object.entries(evt.args).map(([key, val]) => (
-                                                            <span key={key} className="text-xs text-muted-foreground">
-                                                                <span className="text-foreground/70">{key}:</span>{" "}
-                                                                <code className="bg-secondary rounded px-1 py-0.5 font-mono">
-                                                                    {typeof val === "string" && val.startsWith("0x") && val.length > 16
-                                                                        ? truncateAddr(val)
-                                                                        : typeof val === "string" && val.length > 24
-                                                                            ? truncateHash(val)
-                                                                            : String(val)}
-                                                                </code>
+                                </div>
+                                {i < blocks.length - 1 && (
+                                    <div className="flex flex-col items-center gap-1 opacity-30">
+                                        <div className="h-[2px] w-8 bg-gradient-to-r from-primary to-border" />
+                                        <span className="text-[8px] font-bold text-muted-foreground uppercase">Linked</span>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Tabs & Content */}
+                <div className="grid lg:grid-cols-4 gap-8">
+                    {/* Sidebar Tabs */}
+                    <div className="lg:col-span-1 space-y-1">
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-4 mb-4">Data Explorers</h3>
+                        {tabs.map((tab) => {
+                            const Icon = tab.key === "blocks" ? Blocks :
+                                tab.key === "events" ? Activity :
+                                    tab.key === "records" ? FileText :
+                                        tab.key === "consents" ? ShieldCheck : Vote
+                            return (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setActiveTab(tab.key)}
+                                    className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl text-sm font-bold transition-all ${activeTab === tab.key
+                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Icon className="h-4 w-4" />
+                                        {tab.label}
+                                    </div>
+                                    <span className={`tabular-nums text-[10px] font-black px-2 py-0.5 rounded-full ${activeTab === tab.key ? "bg-white/20" : "bg-secondary"}`}>
+                                        {tab.count}
+                                    </span>
+                                </button>
+                            )
+                        })}
+                    </div>
+
+                    {/* Content Display */}
+                    <div className="lg:col-span-3">
+                        <div className="rounded-3xl border border-border/50 bg-card overflow-hidden shadow-sm">
+                            <div className="border-b border-border/50 bg-secondary/10 px-8 py-4 flex items-center justify-between">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-foreground">
+                                    {tabs.find(t => t.key === activeTab)?.label}
+                                </h3>
+                                <div className="hidden sm:flex items-center gap-2 text-[10px] font-bold text-muted-foreground">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                    SYNCED WITH BLOCK #{blockNumber}
+                                </div>
+                            </div>
+
+                            <div className="p-2 sm:p-6 overflow-x-auto">
+                                {activeTab === "blocks" && (
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="border-b border-border/30">
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Number</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Hash</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">TXs</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Time</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gas Used</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/20">
+                                            {blocks.map((block) => (
+                                                <tr key={block.number} className="group hover:bg-secondary/20 transition-colors">
+                                                    <td className="px-6 py-4">
+                                                        <span className="text-sm font-black text-primary font-mono">#{block.number}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="font-mono text-xs text-muted-foreground group-hover:text-foreground transition-colors">{truncateHash(block.hash)}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="inline-flex items-center justify-center rounded-lg bg-secondary px-2 py-1 text-xs font-bold text-foreground">
+                                                            {block.transactions}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="text-xs text-muted-foreground font-medium">{formatTimestamp(block.timestamp)}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-col gap-1">
+                                                            <div className="h-1.5 w-16 bg-secondary rounded-full overflow-hidden">
+                                                                <div
+                                                                    className="h-full bg-primary transition-all duration-1000"
+                                                                    style={{ width: `${Math.min(100, (Number(block.gasUsed) / Number(block.gasLimit)) * 100)}%` }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-[9px] font-bold text-muted-foreground tabular-nums">
+                                                                {Math.round(Number(block.gasUsed) / 1000).toLocaleString()}k units
                                                             </span>
-                                                        ))}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+
+                                {activeTab === "events" && (
+                                    <div className="space-y-3">
+                                        {events.map((evt, i) => {
+                                            const config = EVENT_CONFIG[evt.name] || { icon: Activity, color: "text-muted-foreground", label: evt.name }
+                                            const Icon = config.icon
+                                            return (
+                                                <div key={i} className="group rounded-2xl border border-border/50 bg-background px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-primary/30 transition-all hover:bg-secondary/5">
+                                                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${config.color.replace('text-', 'bg-')}/10 border border-${config.color.split('-')[1]}-500/20 shadow-sm`}>
+                                                        <Icon className={`h-5 w-5 ${config.color}`} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-3 mb-1.5">
+                                                            <span className={`text-xs font-black uppercase tracking-widest ${config.color}`}>{config.label}</span>
+                                                            <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
+                                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Block #{evt.blockNumber}</span>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-x-6 gap-y-2">
+                                                            {Object.entries(evt.args).map(([key, val]) => (
+                                                                <div key={key} className="flex flex-col">
+                                                                    <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">{key}</span>
+                                                                    <code className="text-[11px] font-bold text-foreground font-mono">
+                                                                        {typeof val === "string" && val.startsWith("0x") && val.length > 20
+                                                                            ? truncateAddr(val)
+                                                                            : String(val)}
+                                                                    </code>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-secondary/50 border border-border/40 text-[10px] font-mono font-bold text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                                                        <Hash className="h-3 w-3" />
+                                                        {evt.txHash.slice(0, 14)}…
                                                     </div>
                                                 </div>
-                                                <div className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground font-mono">
-                                                    <Hash className="h-3 w-3" />
-                                                    {evt.txHash.slice(0, 10)}…
+                                            )
+                                        })}
+                                    </div>
+                                )}
+
+                                {activeTab === "records" && (
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        {records.map((rec) => (
+                                            <div key={rec.index} className="p-5 rounded-2xl border border-border/50 bg-background hover:border-primary/30 transition-all">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <span className="text-[10px] font-black text-primary font-mono uppercase tracking-widest">Index #{rec.index}</span>
+                                                    <span className="text-[10px] font-bold text-muted-foreground">{formatTimestamp(rec.timestamp)}</span>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Patient ID</span>
+                                                        <span className="text-sm font-bold text-foreground font-mono bg-secondary/30 px-2 py-1 rounded-lg w-fit">{rec.pid}</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">IPFS CID</span>
+                                                            <span className="text-xs font-bold text-muted-foreground font-mono truncate">{truncateHash(rec.ipfsCID)}</span>
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Registered By</span>
+                                                            <span className="text-xs font-bold text-muted-foreground font-mono truncate">{truncateAddr(rec.registeredBy)}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        )
-                                    })
-                                )}
-                            </div>
-                        )}
-
-                        {activeTab === "records" && (
-                            <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
-                                {records.length === 0 ? (
-                                    <div className="p-12 text-center">
-                                        <FileText className="mx-auto h-12 w-12 text-muted-foreground/30" />
-                                        <p className="mt-4 text-foreground font-medium">No Records</p>
-                                        <p className="text-sm text-muted-foreground">No genomic data has been registered on-chain yet.</p>
+                                        ))}
                                     </div>
-                                ) : (
-                                    <table className="w-full">
-                                        <thead>
-                                            <tr className="border-b border-border/50 bg-secondary/50">
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">#</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">PID</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">File Hash</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">IPFS CID</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Registered By</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Timestamp</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border/30">
-                                            {records.map((rec) => (
-                                                <tr key={rec.index} className="hover:bg-secondary/30 transition-colors">
-                                                    <td className="px-5 py-3 text-sm font-mono text-foreground">{rec.index}</td>
-                                                    <td className="px-5 py-3 text-sm font-mono text-primary">{rec.pid}</td>
-                                                    <td className="px-5 py-3 text-sm font-mono text-muted-foreground">{truncateHash(rec.fileHash)}</td>
-                                                    <td className="px-5 py-3 text-sm font-mono text-muted-foreground">{truncateHash(rec.ipfsCID)}</td>
-                                                    <td className="px-5 py-3 text-sm font-mono text-muted-foreground">{truncateAddr(rec.registeredBy)}</td>
-                                                    <td className="px-5 py-3 text-sm text-muted-foreground">{formatTimestamp(rec.timestamp)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
                                 )}
-                            </div>
-                        )}
 
-                        {activeTab === "consents" && (
-                            <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
-                                {consents.length === 0 ? (
-                                    <div className="p-12 text-center">
-                                        <ShieldCheck className="mx-auto h-12 w-12 text-muted-foreground/30" />
-                                        <p className="mt-4 text-foreground font-medium">No Consents</p>
-                                        <p className="text-sm text-muted-foreground">No consent grants have been recorded on-chain yet.</p>
-                                    </div>
-                                ) : (
-                                    <table className="w-full">
-                                        <thead>
-                                            <tr className="border-b border-border/50 bg-secondary/50">
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">#</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">PID</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Researcher</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Record</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Granted</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Expires</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border/30">
-                                            {consents.map((c) => {
-                                                const isActive = !c.revoked && c.expiresAt * 1000 > Date.now()
-                                                return (
-                                                    <tr key={c.index} className="hover:bg-secondary/30 transition-colors">
-                                                        <td className="px-5 py-3 text-sm font-mono text-foreground">{c.index}</td>
-                                                        <td className="px-5 py-3 text-sm font-mono text-primary">{c.pid}</td>
-                                                        <td className="px-5 py-3 text-sm font-mono text-muted-foreground">{truncateAddr(c.researcher)}</td>
-                                                        <td className="px-5 py-3 text-sm font-mono text-muted-foreground">#{c.recordIndex}</td>
-                                                        <td className="px-5 py-3 text-sm text-muted-foreground">{formatTimestamp(c.grantedAt)}</td>
-                                                        <td className="px-5 py-3 text-sm text-muted-foreground">{formatTimestamp(c.expiresAt)}</td>
-                                                        <td className="px-5 py-3">
+                                {activeTab === "consents" && (
+                                    <div className="space-y-4">
+                                        {consents.map((c) => {
+                                            const isActive = !c.revoked && c.expiresAt * 1000 > Date.now()
+                                            return (
+                                                <div key={c.index} className="rounded-2xl border border-border/50 bg-background p-5 hover:border-primary/30 transition-all">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={`h-10 w-10 flex items-center justify-center rounded-xl ${isActive ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"}`}>
+                                                                <ShieldCheck className="h-5 w-5" />
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-sm font-black text-foreground uppercase tracking-tight">Consent #{c.index}</h4>
+                                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">FOR RECORD #{c.recordIndex}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-wrap items-center gap-3">
+                                                            <div className="flex flex-col items-end">
+                                                                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">PID</span>
+                                                                <span className="text-xs font-bold text-foreground font-mono">{c.pid}</span>
+                                                            </div>
+                                                            <div className="h-8 w-px bg-border/50" />
+                                                            <div className="flex flex-col items-end">
+                                                                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Researcher</span>
+                                                                <span className="text-xs font-bold text-foreground font-mono">{truncateAddr(c.researcher)}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border/50">
                                                             {c.revoked ? (
-                                                                <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-500 border border-red-500/20">
-                                                                    <XCircle className="h-3 w-3" /> Revoked
-                                                                </span>
+                                                                <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1.5"><XCircle className="h-3 w-3" /> Revoked</span>
                                                             ) : isActive ? (
-                                                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-500 border border-emerald-500/20">
-                                                                    <CheckCircle2 className="h-3 w-3" /> Active
-                                                                </span>
+                                                                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> Active</span>
                                                             ) : (
-                                                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-500 border border-amber-500/20">
-                                                                    <Clock className="h-3 w-3" /> Expired
-                                                                </span>
+                                                                <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1.5"><Clock className="h-3 w-3" /> Expired</span>
                                                             )}
-                                                        </td>
-                                                    </tr>
-                                                )
-                                            })}
-                                        </tbody>
-                                    </table>
-                                )}
-                            </div>
-                        )}
-
-                        {activeTab === "proposals" && (
-                            <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
-                                {proposals.length === 0 ? (
-                                    <div className="p-12 text-center">
-                                        <Vote className="mx-auto h-12 w-12 text-muted-foreground/30" />
-                                        <p className="mt-4 text-foreground font-medium">No Proposals</p>
-                                        <p className="text-sm text-muted-foreground">No registration proposals have been submitted yet.</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
-                                ) : (
-                                    <table className="w-full">
-                                        <thead>
-                                            <tr className="border-b border-border/50 bg-secondary/50">
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">#</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Applicant</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Role</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Votes</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Deadline</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border/30">
-                                            {proposals.map((p) => (
-                                                <tr key={p.id} className="hover:bg-secondary/30 transition-colors">
-                                                    <td className="px-5 py-3 text-sm font-mono text-foreground">{p.id}</td>
-                                                    <td className="px-5 py-3 text-sm font-mono text-muted-foreground">{truncateAddr(p.applicant)}</td>
-                                                    <td className="px-5 py-3">
-                                                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary border border-primary/20">
-                                                            {p.requestedRole}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-5 py-3 text-sm">
-                                                        <span className="inline-flex items-center gap-2">
-                                                            <span className="flex items-center gap-1 text-emerald-500">
-                                                                <ThumbsUp className="h-3 w-3" /> {p.approveCount}
-                                                            </span>
-                                                            <span className="text-muted-foreground/40">|</span>
-                                                            <span className="flex items-center gap-1 text-red-500">
-                                                                <XCircle className="h-3 w-3" /> {p.rejectCount}
-                                                            </span>
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-5 py-3 text-sm text-muted-foreground">{formatTimestamp(p.deadline)}</td>
-                                                    <td className="px-5 py-3">
-                                                        {p.status === "Approved" ? (
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-500 border border-emerald-500/20">
-                                                                <CheckCircle2 className="h-3 w-3" /> Approved
-                                                            </span>
-                                                        ) : p.status === "Rejected" ? (
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-500 border border-red-500/20">
-                                                                <XCircle className="h-3 w-3" /> Rejected
-                                                            </span>
-                                                        ) : (
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-500 border border-amber-500/20">
-                                                                <Clock className="h-3 w-3" /> Pending
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                )}
+
+                                {activeTab === "proposals" && (
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        {proposals.map((p) => (
+                                            <div key={p.id} className="rounded-2xl border border-border/50 bg-background p-6 hover:border-primary/30 transition-all">
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <span className="inline-flex items-center rounded-xl bg-primary/10 px-3 py-1 text-[10px] font-black text-primary border border-primary/20 uppercase tracking-widest">
+                                                        {p.requestedRole} Request
+                                                    </span>
+                                                    <span className={`text-[10px] font-black uppercase tracking-widest ${p.status === "Approved" ? "text-emerald-500" : p.status === "Rejected" ? "text-red-500" : "text-amber-500"}`}>
+                                                        {p.status}
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-4 mb-6">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Applicant</span>
+                                                        <span className="text-xs font-bold font-mono text-foreground truncate">{p.applicant}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4 bg-secondary/30 rounded-2xl p-4">
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mb-1">Yes</span>
+                                                        <span className="text-xl font-black text-foreground tabular-nums tracking-tighter">{p.approveCount}</span>
+                                                    </div>
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">No</span>
+                                                        <span className="text-xl font-black text-foreground tabular-nums tracking-tighter">{p.rejectCount}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
-                        )}
-                    </>
-                ) : null}
+                        </div>
+                    </div>
+                </div>
             </main>
 
-            {/* Footer */}
-            <footer className="border-t border-border/50 bg-card/50 py-12">
-                <div className="mx-auto max-w-7xl px-6 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                        <Shield className="h-5 w-5 text-primary" />
-                        <span className="font-bold text-foreground">GenShare</span>
+            {/* Network Footer */}
+            <footer className="border-t border-border/50 bg-card py-16">
+                <div className="mx-auto max-w-7xl px-6 grid md:grid-cols-3 gap-12 text-center md:text-left">
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-center md:justify-start gap-2">
+                            <Dna className="h-6 w-6 text-primary" />
+                            <span className="text-xl font-black tracking-tighter text-foreground">GenShare <span className="text-xs font-bold text-muted-foreground/50">v0.1</span></span>
+                        </div>
+                        <p className="text-xs font-medium text-muted-foreground leading-relaxed">
+                            Decentralized genomic intelligence network. Powered by Ethereum smart contracts and secure off-chain IPFS storage.
+                        </p>
                     </div>
-                    <p className="mt-3 text-sm text-muted-foreground">
-                        A Blockchain-Based Genomic Data Sharing Platform
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        Ethereum Hardhat Local Network | IPFS Off-Chain Storage | HIPAA/GDPR Aligned
-                    </p>
+                    <div className="space-y-4">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-foreground">Network Config</h4>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-center md:justify-start gap-2 text-xs font-bold text-muted-foreground">
+                                <span className="h-1.5 w-1.5 rounded-full bg-success" /> Hardhat Localhost:8545
+                            </div>
+                            <div className="flex items-center justify-center md:justify-start gap-2 text-xs font-bold text-muted-foreground">
+                                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> IPFS Desktop:5001
+                            </div>
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-foreground">Compliance</h4>
+                        <div className="flex flex-wrap justify-center md:justify-start gap-2">
+                            {["HIPAA", "GDPR", "FERPA", "SOC2"].map(tag => (
+                                <span key={tag} className="px-2 py-0.5 rounded bg-secondary text-[9px] font-black text-muted-foreground/70">{tag}</span>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </footer>
         </div>

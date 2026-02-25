@@ -44,8 +44,33 @@ export async function GET() {
         const rpcUrl = process.env.RPC_URL || "http://127.0.0.1:8545"
         const provider = new ethers.JsonRpcProvider(rpcUrl)
 
-        // Get current block number
+        // Get current block number and network stats
         const blockNumber = await provider.getBlockNumber()
+        const feeData = await provider.getFeeData()
+
+        // Fetch last 10 blocks
+        const blocks = []
+        const latestBlockNum = blockNumber
+        const startBlock = Math.max(0, latestBlockNum - 9)
+
+        for (let i = latestBlockNum; i >= startBlock; i--) {
+            try {
+                const block = await provider.getBlock(i)
+                if (block) {
+                    blocks.push({
+                        number: block.number,
+                        hash: block.hash,
+                        timestamp: block.timestamp,
+                        transactions: block.transactions.length,
+                        gasUsed: block.gasUsed.toString(),
+                        gasLimit: block.gasLimit.toString(),
+                        miner: block.miner || '0x0000000000000000000000000000000000000000',
+                    })
+                }
+            } catch (err) {
+                console.error(`Error fetching block ${i}:`, err)
+            }
+        }
 
         // Get counts — each is individually safe so older contracts don't crash
         const [recordCount, consentCount, proposalCount] = await Promise.all([
@@ -61,9 +86,11 @@ export async function GET() {
             safeCall(() => contract.memberCount(3).then(Number), 0),
         ])
 
-        // Fetch all records
+        // Fetch all records (limit to 50 for performance if many)
         const records = []
-        for (let i = 0; i < recordCount; i++) {
+        const recordsToFetch = Math.min(recordCount, 50)
+        for (let i = recordCount - 1; i >= recordCount - recordsToFetch; i--) {
+            if (i < 0) break
             try {
                 const r = await contract.getGenomicRecord(i)
                 records.push({
@@ -77,9 +104,11 @@ export async function GET() {
             } catch { /* skip */ }
         }
 
-        // Fetch all consents
+        // Fetch all consents (limit to 50)
         const consents = []
-        for (let i = 0; i < consentCount; i++) {
+        const consentsToFetch = Math.min(consentCount, 50)
+        for (let i = consentCount - 1; i >= consentCount - consentsToFetch; i--) {
+            if (i < 0) break
             try {
                 const c = await contract.getConsent(i)
                 consents.push({
@@ -111,10 +140,12 @@ export async function GET() {
             } catch { /* skip */ }
         }
 
-        // Query all events from block 0 to latest
+        // Query recent events (limit range for performance)
         let events: { name: string; blockNumber: number; txHash: string; args: Record<string, string | number | boolean> }[] = []
         try {
-            const eventFilter = { address: await contract.getAddress(), fromBlock: 0, toBlock: 'latest' }
+            const currentBlock = await provider.getBlockNumber()
+            const fromBlock = Math.max(0, currentBlock - 5000) // last 5000 blocks
+            const eventFilter = { address: await contract.getAddress(), fromBlock, toBlock: 'latest' }
             const logs = await provider.getLogs(eventFilter)
 
             events = logs.map((log) => {
@@ -135,9 +166,18 @@ export async function GET() {
             // Event querying failed — continue with empty events
         }
 
+        // Get network info
+        const network = await provider.getNetwork()
+        const chainId = network.chainId.toString()
+        const networkName = network.name === 'unknown' ? 'Hardhat / Local' : network.name
+
         return NextResponse.json({
             success: true,
             blockNumber,
+            gasPrice: feeData.gasPrice?.toString() || '0',
+            chainId,
+            networkName,
+            blocks,
             stats: {
                 totalRecords: recordCount,
                 totalConsents: consentCount,

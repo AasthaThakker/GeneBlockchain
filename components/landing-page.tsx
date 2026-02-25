@@ -149,6 +149,14 @@ export function LandingPage() {
     setLoading(true)
     setError(null)
     setSuccessMessage(null)
+
+    // Basic address validation
+    if (!labRegWallet || !labRegWallet.match(/^0x[a-fA-F0-9]{40}$/)) {
+      setError("Please provide a valid Ethereum wallet address (0x...)")
+      setLoading(false)
+      return
+    }
+
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
@@ -191,6 +199,14 @@ export function LandingPage() {
     setLoading(true)
     setError(null)
     setSuccessMessage(null)
+
+    // Basic address validation
+    if (!resRegWallet || !resRegWallet.match(/^0x[a-fA-F0-9]{40}$/)) {
+      setError("Please provide a valid Ethereum wallet address (0x...)")
+      setLoading(false)
+      return
+    }
+
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
