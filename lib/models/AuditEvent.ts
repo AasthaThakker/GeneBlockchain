@@ -10,6 +10,11 @@ export interface IAuditEvent extends Document {
     txHash: string
     details: string
     createdAt: Date
+    
+    // Blockchain integration
+    blockchainTransactionId?: mongoose.Types.ObjectId
+    blockNumber?: number
+    gasUsed?: string
 }
 
 const auditEventSchema = new Schema<IAuditEvent>({
@@ -46,6 +51,20 @@ const auditEventSchema = new Schema<IAuditEvent>({
     details: {
         type: String,
         required: true
+    },
+    
+    // Blockchain integration
+    blockchainTransactionId: {
+        type: Schema.Types.ObjectId,
+        ref: 'BlockchainTransaction',
+        index: true
+    },
+    blockNumber: {
+        type: Number,
+        index: true
+    },
+    gasUsed: {
+        type: String
     }
 }, {
     timestamps: { createdAt: true, updatedAt: false }

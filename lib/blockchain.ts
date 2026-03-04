@@ -1,4 +1,5 @@
 import { ethers } from 'ethers';
+import { storeTransaction, storeBlock } from './blockchain-storage';
 
 // ABI for GenShareRegistry — only the functions we use from the API routes
 const CONTRACT_ABI = [
@@ -51,6 +52,8 @@ function getProvider() {
     return new ethers.JsonRpcProvider(rpcUrl);
 }
 
+export { getProvider };
+
 function getSigner() {
     const provider = getProvider();
     const privateKey = process.env.HARDHAT_PRIVATE_KEY || DEFAULT_HARDHAT_KEY;
@@ -70,7 +73,7 @@ function getContract() {
 
 /**
  * Register genomic data hash on-chain
- * @returns Transaction hash
+ * @returns Transaction hash and record index
  */
 export async function registerGenomicData(
     pid: string,
@@ -108,6 +111,30 @@ export async function registerGenomicData(
         } catch (e) {
             console.error(`[Blockchain] Fallback failed:`, e);
         }
+    }
+
+    // Store comprehensive transaction details
+    try {
+        await storeTransaction(
+            receipt,
+            tx,
+            'registerGenomicData',
+            { pid, fileHash, ipfsCID },
+            undefined,
+            { type: 'GenomicData', id: recordIndex.toString() }
+        );
+
+        // Store block if not already stored
+        if (receipt.blockNumber) {
+            try {
+                await storeBlock(receipt.blockNumber, getProvider());
+            } catch (blockError: any) {
+                console.warn(`[Blockchain] Block already stored or failed:`, blockError?.message || blockError);
+            }
+        }
+    } catch (storageError) {
+        console.error('[Blockchain] Failed to store transaction details:', storageError);
+        // Continue execution even if storage fails
     }
 
     return { txHash: receipt.hash, recordIndex };
@@ -161,6 +188,29 @@ export async function grantConsent(
         } catch (e) {
             console.error(`[Blockchain] Fallback failed:`, e);
         }
+    }
+
+    // Store comprehensive transaction details
+    try {
+        await storeTransaction(
+            receipt,
+            tx,
+            'grantConsent',
+            { pid, researcherAddress, recordIndex, durationDays },
+            undefined,
+            { type: 'Consent', id: consentIndex.toString() }
+        );
+
+        // Store block if not already stored
+        if (receipt.blockNumber) {
+            try {
+                await storeBlock(receipt.blockNumber, getProvider());
+            } catch (blockError: any) {
+                console.warn(`[Blockchain] Block already stored or failed:`, blockError?.message || blockError);
+            }
+        }
+    } catch (storageError) {
+        console.error('[Blockchain] Failed to store transaction details:', storageError);
     }
 
     return { txHash: receipt.hash, consentIndex };

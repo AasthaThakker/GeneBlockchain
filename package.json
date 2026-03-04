@@ -11,6 +11,7 @@
     "hardhat:node": "npx hardhat node",
     "hardhat:compile": "npx hardhat compile",
     "hardhat:deploy": "npx hardhat run scripts/deploy.js --network localhost",
+    "hardhat:start": "node scripts/start-hardhat.js",
     "ipfs:start": "scripts\\start-ipfs.bat",
     "ipfs:install": "scripts\\install-ipfs-windows.bat",
     "ipfs:test": "node scripts/test-ipfs.js",

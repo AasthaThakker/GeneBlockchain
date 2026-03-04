@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
+import { registerGenomicData } from '@/lib/blockchain'
 
 // IPFS functions with fallback for when library is not installed
 let ipfsFunctions: {
@@ -65,6 +66,32 @@ export async function POST(request: NextRequest) {
         await ipfsFunctions!.pinToIPFS(ipfsCID)
         
         console.log(`[IPFS] Upload successful: CID=${ipfsCID}, encrypted=${encrypted}`)
+        
+        // Register on blockchain and store transaction details
+        try {
+            const registerResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    pid,
+                    fileHash,
+                    ipfsCID,
+                    labId,
+                    labName
+                })
+            })
+            
+            if (registerResponse.ok) {
+                const registerResult = await registerResponse.json()
+                console.log(`[Blockchain] Registration successful: ${registerResult.data.txHash}`)
+            } else {
+                console.error('[Blockchain] Registration failed:', await registerResponse.text())
+            }
+        } catch (blockchainError) {
+            console.error('[Blockchain] Registration error:', blockchainError)
+        }
       } catch (ipfsError) {
         console.error('IPFS upload failed:', ipfsError)
         return NextResponse.json({ 
