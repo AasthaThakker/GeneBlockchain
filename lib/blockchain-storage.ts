@@ -7,7 +7,7 @@ function getProvider() {
 };
 
 // Types for better TypeScript support
-interface ITransactionData {
+export interface ITransactionData {
     txHash: string;
     blockNumber?: number;
     blockHash?: string;
@@ -71,13 +71,28 @@ export async function storeTransaction(txData: ITransactionData): Promise<any> {
             throw new Error('Database not connected');
         }
         
+        // Handle null/empty txHash by generating auto-increment key
+        let finalTxHash = txData.txHash;
+        if (!finalTxHash || finalTxHash === 'null' || finalTxHash.trim() === '') {
+            // Get the next auto-increment number
+            const counter = await db.collection('counters').findOneAndUpdate(
+                { _id: 'txHashCounter' },
+                { $inc: { sequence_value: 1 } },
+                { upsert: true, returnDocument: 'after' }
+            );
+            
+            finalTxHash = `AUTO_TX_${counter.sequence_value}`;
+            console.log(`[BlockchainStorage] Generated auto-increment txHash: ${finalTxHash}`);
+        }
+        
         const result = await db.collection('blockchaintransactions').insertOne({
             ...txData,
+            txHash: finalTxHash,
             createdAt: new Date(),
             updatedAt: new Date()
         });
         
-        console.log(`[BlockchainStorage] Stored transaction ${txData.txHash}`);
+        console.log(`[BlockchainStorage] Stored transaction ${finalTxHash}`);
         return result.insertedId;
     } catch (error: any) {
         console.error('[BlockchainStorage] Failed to store transaction:', error?.message || error);

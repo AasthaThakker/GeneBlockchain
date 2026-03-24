@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { storeTransaction, storeBlock } from './blockchain-storage';
+import { storeTransaction, storeBlock, ITransactionData } from './blockchain-storage';
 
 // ABI for GenShareRegistry — only the functions we use from the API routes
 const CONTRACT_ABI = [
@@ -115,19 +115,62 @@ export async function registerGenomicData(
 
     // Store comprehensive transaction details
     try {
-        await storeTransaction(
-            receipt,
-            tx,
-            'registerGenomicData',
-            { pid, fileHash, ipfsCID },
-            undefined,
-            { type: 'GenomicData', id: recordIndex.toString() }
-        );
+        const transactionData: ITransactionData = {
+            txHash: receipt.hash,
+            blockNumber: receipt.blockNumber,
+            blockHash: receipt.blockHash,
+            transactionIndex: receipt.index,
+            gasUsed: receipt.gasUsed.toString(),
+            gasPrice: tx.gasPrice?.toString() || '0',
+            gasLimit: tx.gasLimit.toString(),
+            from: tx.from,
+            to: tx.to || '',
+            value: tx.value.toString(),
+            data: tx.data,
+            nonce: tx.nonce,
+            status: receipt.status === 1,
+            timestamp: new Date(),
+            confirmations: receipt.confirmations,
+            contractAddress: tx.to,
+            functionName: 'registerGenomicData',
+            functionParameters: { pid, fileHash, ipfsCID },
+            events: receipt.logs.map((log: any, index: number) => ({
+                name: `Event${index}`,
+                signature: log.topics[0] || '',
+                args: {
+                    topics: log.topics,
+                    data: log.data
+                },
+                address: log.address,
+                logIndex: log.index
+            })),
+            relatedEntity: { type: 'GenomicData', id: recordIndex.toString() },
+            networkId: 'localhost'
+        };
+        
+        await storeTransaction(transactionData);
 
         // Store block if not already stored
         if (receipt.blockNumber) {
             try {
-                await storeBlock(receipt.blockNumber, getProvider());
+                const blockData = await getProvider().getBlock(receipt.blockNumber);
+                if (blockData) {
+                    await storeBlock({
+                        blockNumber: blockData.number,
+                        blockHash: blockData.hash || '',
+                        parentHash: blockData.parentHash || '',
+                        timestamp: new Date(blockData.timestamp * 1000),
+                        miner: blockData.miner || '',
+                        difficulty: blockData.difficulty.toString(),
+                        totalDifficulty: blockData.difficulty.toString(),
+                        size: 0,
+                        gasLimit: blockData.gasLimit.toString(),
+                        gasUsed: blockData.gasUsed.toString(),
+                        transactionCount: blockData.transactions.length,
+                        transactionHashes: blockData.transactions.map((tx: any) => typeof tx === 'string' ? tx : tx.hash),
+                        networkId: 'localhost'
+                    });
+                }
             } catch (blockError: any) {
                 console.warn(`[Blockchain] Block already stored or failed:`, blockError?.message || blockError);
             }
@@ -192,19 +235,62 @@ export async function grantConsent(
 
     // Store comprehensive transaction details
     try {
-        await storeTransaction(
-            receipt,
-            tx,
-            'grantConsent',
-            { pid, researcherAddress, recordIndex, durationDays },
-            undefined,
-            { type: 'Consent', id: consentIndex.toString() }
-        );
+        const transactionData: ITransactionData = {
+            txHash: receipt.hash,
+            blockNumber: receipt.blockNumber,
+            blockHash: receipt.blockHash,
+            transactionIndex: receipt.index,
+            gasUsed: receipt.gasUsed.toString(),
+            gasPrice: tx.gasPrice?.toString() || '0',
+            gasLimit: tx.gasLimit.toString(),
+            from: tx.from,
+            to: tx.to || '',
+            value: tx.value.toString(),
+            data: tx.data,
+            nonce: tx.nonce,
+            status: receipt.status === 1,
+            timestamp: new Date(),
+            confirmations: receipt.confirmations,
+            contractAddress: tx.to,
+            functionName: 'grantConsent',
+            functionParameters: { pid, researcherAddress, recordIndex, durationDays },
+            events: receipt.logs.map((log: any, index: number) => ({
+                name: `Event${index}`,
+                signature: log.topics[0] || '',
+                args: {
+                    topics: log.topics,
+                    data: log.data
+                },
+                address: log.address,
+                logIndex: log.index
+            })),
+            relatedEntity: { type: 'Consent', id: consentIndex.toString() },
+            networkId: 'localhost'
+        };
+        
+        await storeTransaction(transactionData);
 
         // Store block if not already stored
         if (receipt.blockNumber) {
             try {
-                await storeBlock(receipt.blockNumber, getProvider());
+                const blockData = await getProvider().getBlock(receipt.blockNumber);
+                if (blockData) {
+                    await storeBlock({
+                        blockNumber: blockData.number,
+                        blockHash: blockData.hash || '',
+                        parentHash: blockData.parentHash || '',
+                        timestamp: new Date(blockData.timestamp * 1000),
+                        miner: blockData.miner || '',
+                        difficulty: blockData.difficulty.toString(),
+                        totalDifficulty: blockData.difficulty.toString(),
+                        size: 0,
+                        gasLimit: blockData.gasLimit.toString(),
+                        gasUsed: blockData.gasUsed.toString(),
+                        transactionCount: blockData.transactions.length,
+                        transactionHashes: blockData.transactions.map((tx: any) => typeof tx === 'string' ? tx : tx.hash),
+                        networkId: 'localhost'
+                    });
+                }
             } catch (blockError: any) {
                 console.warn(`[Blockchain] Block already stored or failed:`, blockError?.message || blockError);
             }
@@ -299,6 +385,8 @@ export async function proposeRegistrationOnChain(
     let autoApproved = false;
 
     console.log(`[Blockchain] Tx receipt logs count: ${receipt.logs.length}`);
+    console.log(`[Blockchain] Full receipt logs:`, JSON.stringify(receipt.logs, null, 2));
+    
     for (const log of receipt.logs) {
         try {
             const parsedLog = contract.interface.parseLog({
@@ -307,6 +395,7 @@ export async function proposeRegistrationOnChain(
             });
 
             console.log(`[Blockchain] Parsed log name: ${parsedLog?.name}`);
+            console.log(`[Blockchain] Parsed log args:`, parsedLog?.args);
 
             if (parsedLog?.name === "RegistrationProposed") {
                 proposalId = Number(parsedLog.args.proposalId);
@@ -317,6 +406,7 @@ export async function proposeRegistrationOnChain(
                 console.log(`[Blockchain] Found RegistrationApproved`);
             }
         } catch (e) {
+            console.log(`[Blockchain] Failed to parse log:`, e);
             // Log might not belong to this contract, skip
             continue;
         }
@@ -326,10 +416,31 @@ export async function proposeRegistrationOnChain(
         console.warn(`[Blockchain] Transaction ${receipt.hash} successful but RegistrationProposed event not found in logs. Using count fallback.`);
         try {
             const count = await contract.proposalCount();
-            proposalId = Number(count) - 1;
-            console.log(`[Blockchain] Fallback proposalId: ${proposalId}`);
+            const totalCount = Number(count);
+            proposalId = totalCount; // Use the current count as the new proposal ID
+            console.log(`[Blockchain] Fallback proposalId: ${proposalId} (total count: ${totalCount})`);
         } catch (e) {
             console.error(`[Blockchain] Fallback failed:`, e);
+            // As last resort, query database for the highest proposalId and increment
+            try {
+                const mongoose = require('mongoose');
+                if (mongoose.connection.readyState !== 1) {
+                    await mongoose.connect('mongodb://localhost:27017/genomic-data-platform');
+                }
+                const db = mongoose.connection.db;
+                const lastProposal = await db.collection('registrationrequests')
+                    .find({ proposalId: { $gt: 0 } })
+                    .sort({ proposalId: -1 })
+                    .limit(1)
+                    .toArray();
+                
+                proposalId = lastProposal.length > 0 ? lastProposal[0].proposalId + 1 : 1;
+                console.log(`[Blockchain] Database fallback proposalId: ${proposalId}`);
+            } catch (dbError) {
+                console.error(`[Blockchain] Database fallback failed:`, dbError);
+                proposalId = 1; // Ultimate fallback
+                console.log(`[Blockchain] Using ultimate fallback proposalId: 1`);
+            }
         }
     }
 
