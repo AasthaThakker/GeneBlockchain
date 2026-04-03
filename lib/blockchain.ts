@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { storeTransaction, storeBlock, ITransactionData } from './blockchain-storage';
+import { getOperationType, calculateGasCostETH } from './operation-mapping';
 
 // ABI for GenShareRegistry — only the functions we use from the API routes
 const CONTRACT_ABI = [
@@ -79,10 +80,18 @@ export async function registerGenomicData(
     pid: string,
     fileHash: string,
     ipfsCID: string
-): Promise<{ txHash: string; recordIndex: number }> {
+): Promise<{ txHash: string; recordIndex: number; latency?: number }> {
     const contract = getContract();
+    
+    // Track submission time
+    const submissionTime = Date.now();
+    
     const tx = await contract.registerGenomicData(pid, fileHash, ipfsCID);
     const receipt = await tx.wait();
+    
+    // Track confirmation time and calculate latency
+    const confirmationTime = Date.now();
+    const latency = confirmationTime - submissionTime;
 
     let recordIndex = -1;
 
@@ -115,6 +124,10 @@ export async function registerGenomicData(
 
     // Store comprehensive transaction details
     try {
+        const functionName = 'registerGenomicData';
+        const operationType = getOperationType(functionName);
+        const gasCostETH = calculateGasCostETH(receipt);
+        
         const transactionData: ITransactionData = {
             txHash: receipt.hash,
             blockNumber: receipt.blockNumber,
@@ -123,6 +136,9 @@ export async function registerGenomicData(
             gasUsed: receipt.gasUsed.toString(),
             gasPrice: tx.gasPrice?.toString() || '0',
             gasLimit: tx.gasLimit.toString(),
+            effectiveGasPrice: tx.gasPrice?.toString() || '0',
+            maxFeePerGas: tx.maxFeePerGas?.toString(),
+            maxPriorityFeePerGas: tx.maxPriorityFeePerGas?.toString(),
             from: tx.from,
             to: tx.to || '',
             value: tx.value.toString(),
@@ -131,8 +147,16 @@ export async function registerGenomicData(
             status: receipt.status === 1,
             timestamp: new Date(),
             confirmations: receipt.confirmations,
+            
+            // Transaction Latency Metrics
+            submissionTime: new Date(submissionTime),
+            confirmationTime: new Date(confirmationTime),
+            latency: latency,
+            
             contractAddress: tx.to,
-            functionName: 'registerGenomicData',
+            functionName: functionName,
+            operationType: operationType,
+            gasCostETH: gasCostETH,
             functionParameters: { pid, fileHash, ipfsCID },
             events: receipt.logs.map((log: any, index: number) => ({
                 name: `Event${index}`,
@@ -180,7 +204,7 @@ export async function registerGenomicData(
         // Continue execution even if storage fails
     }
 
-    return { txHash: receipt.hash, recordIndex };
+    return { txHash: receipt.hash, recordIndex, latency };
 }
 
 /**
@@ -205,10 +229,18 @@ export async function grantConsent(
     researcherAddress: string,
     recordIndex: number,
     durationDays: number
-): Promise<{ txHash: string; consentIndex: number }> {
+): Promise<{ txHash: string; consentIndex: number; latency?: number }> {
     const contract = getContract();
+    
+    // Track submission time
+    const submissionTime = Date.now();
+    
     const tx = await contract.grantConsent(pid, researcherAddress, recordIndex, durationDays);
     const receipt = await tx.wait();
+    
+    // Track confirmation time and calculate latency
+    const confirmationTime = Date.now();
+    const latency = confirmationTime - submissionTime;
 
     const event = receipt.logs
         .map((log: ethers.Log) => {
@@ -235,6 +267,10 @@ export async function grantConsent(
 
     // Store comprehensive transaction details
     try {
+        const functionName = 'grantConsent';
+        const operationType = getOperationType(functionName);
+        const gasCostETH = calculateGasCostETH(receipt);
+        
         const transactionData: ITransactionData = {
             txHash: receipt.hash,
             blockNumber: receipt.blockNumber,
@@ -243,6 +279,9 @@ export async function grantConsent(
             gasUsed: receipt.gasUsed.toString(),
             gasPrice: tx.gasPrice?.toString() || '0',
             gasLimit: tx.gasLimit.toString(),
+            effectiveGasPrice: tx.gasPrice?.toString() || '0',
+            maxFeePerGas: tx.maxFeePerGas?.toString(),
+            maxPriorityFeePerGas: tx.maxPriorityFeePerGas?.toString(),
             from: tx.from,
             to: tx.to || '',
             value: tx.value.toString(),
@@ -251,8 +290,16 @@ export async function grantConsent(
             status: receipt.status === 1,
             timestamp: new Date(),
             confirmations: receipt.confirmations,
+            
+            // Transaction Latency Metrics
+            submissionTime: new Date(submissionTime),
+            confirmationTime: new Date(confirmationTime),
+            latency: latency,
+            
             contractAddress: tx.to,
-            functionName: 'grantConsent',
+            functionName: functionName,
+            operationType: operationType,
+            gasCostETH: gasCostETH,
             functionParameters: { pid, researcherAddress, recordIndex, durationDays },
             events: receipt.logs.map((log: any, index: number) => ({
                 name: `Event${index}`,
@@ -299,7 +346,7 @@ export async function grantConsent(
         console.error('[Blockchain] Failed to store transaction details:', storageError);
     }
 
-    return { txHash: receipt.hash, consentIndex };
+    return { txHash: receipt.hash, consentIndex, latency };
 }
 
 /**

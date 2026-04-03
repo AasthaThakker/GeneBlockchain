@@ -1,0 +1,31 @@
+
+IEEE TRANSACTION LATENCY ANALYSIS REPORT
+Generated: 2026-03-25 14:30:42
+
+STATISTICAL ANALYSIS:
+- Sample Size: 122 transactions
+- Min Latency: 7.00ms
+- Max Latency: 59.00ms
+- Mean Latency: 20.24ms
+- Median Latency: 17.00ms
+- Std Deviation: 11.22ms
+
+PERCENTILES:
+- 95th Percentile: 47.95ms
+- 99th Percentile: 58.00ms
+
+OBSERVATION:
+Latency ranged between 7ms to 59ms under local Hardhat conditions.
+Performance shows good consistency with moderate variance.
+
+REASON:
+Variability is primarily due to:
+- Block mining interval in Hardhat (instant mining vs delayed)
+- Network simulation overhead in local environment
+- Transaction processing queue dynamics
+
+IMPACT:
+Indicates good performance suitable for most applications.
+System demonstrates predictable performance under controlled blockchain environment.
+
+PERFORMANCE CLASSIFICATION: GOOD

@@ -137,7 +137,7 @@ export default function ExplorerPage() {
     const fetchData = useCallback(async (isAuto = false) => {
         if (!isAuto) setLoading(true)
         try {
-            const res = await fetch("/api/blockchain-explorer")
+            const res = await fetch("/api/mongodb-explorer")
             const data = await res.json()
             if (!res.ok) throw new Error(data.error)
             setBlockNumber(data.blockNumber)

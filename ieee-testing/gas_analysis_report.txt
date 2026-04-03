@@ -1,0 +1,47 @@
+
+IEEE GAS COST ANALYSIS REPORT
+Generated: 2026-03-25 14:31:21
+
+OVERALL STATISTICS:
+- Total Transactions: 80
+- Total Gas Used: 2,129,110
+- Average Gas: 26,614
+- Total Cost: 0.00232544 ETH
+- Average Cost: 0.00002907 ETH
+
+OPERATION-SPECIFIC ANALYSIS:
+UPLOAD Operations:
+- Count: 50
+- Average Gas: 28,058
+- Average Cost: 0.00003198 ETH
+
+CONSENT Operations:
+- Count: 30
+- Average Gas: 24,207
+- Average Cost: 0.00002421 ETH
+
+OBSERVATION:
+Gas consumption varies significantly by operation type.
+UPLOAD operations consume 28,058 gas on average.
+CONSENT operations consume 24,207 gas on average.
+CONSENT operations are 13.7% more gas-efficient than UPLOAD.
+
+REASON:
+Gas consumption differences are due to:
+- UPLOAD operations involve complex data storage and validation
+- CONSENT operations involve simpler permission management
+- Smart contract complexity varies by operation type
+- On-chain storage requirements differ between operations
+
+IMPACT:
+Gas costs are minimal (< 0.0001 ETH per transaction)
+System demonstrates excellent cost efficiency for blockchain operations
+Suitable for high-frequency genomic data transactions
+
+PERFORMANCE CLASSIFICATION: EXCELLENT
+Assessment: Low gas consumption suitable for production
+
+COST EFFICIENCY ANALYSIS:
+- UPLOAD Cost per Transaction: 0.00003198 ETH
+- CONSENT Cost per Transaction: 0.00002421 ETH
+- Cost Efficiency Ratio: 75.7%

@@ -1,0 +1,53 @@
+
+IEEE GAS COST ANALYSIS REPORT
+Generated: 2026-03-25 11:21:04
+
+STEP 2.4: DATA EXTRACTION
+- Raw data extracted from blockchaintransactions collection
+- Fields: operationType, gasUsed, gasCostETH
+- Total transactions analyzed: 80
+
+STEP 2.5: DATA AGGREGATION
+- Average values calculated by operation type
+- Statistical analysis performed for IEEE compliance
+
+STEP 2.6: GRAPH GENERATION
+- Bar chart created showing average gas consumption per operation
+- Visual representation optimized for IEEE publication standards
+
+STEP 2.7: IEEE ANALYSIS
+
+🔹 Observation
+UPLOAD operations consumed the highest gas (28,058), 
+while CONSENT required the least (24,207).
+
+🔹 Reason
+Upload operations involve complex data storage, validation, and IPFS integration,
+increasing computational complexity and gas consumption.
+
+🔹 Impact
+Indicates that even the most resource-intensive operations maintain
+reasonable gas costs, suitable for practical blockchain deployment.
+
+🔷 ADVANCED: COST COMPARISON
+
+Operation        Gas        Cost (ETH)
+----------------------------------------
+UPLOAD              28,058     0.00003198
+CONSENT             24,207     0.00002421
+
+
+👉 This gives:
+• Economic analysis of blockchain operations
+• Practical usability insight for cost estimation
+• Foundation for cost-benefit analysis
+• Data for operational budgeting decisions
+
+PERFORMANCE CLASSIFICATION: EXCELLENT
+Assessment: Low gas consumption enables high-frequency operations
+
+RECOMMENDATIONS:
+1. Continue monitoring gas consumption patterns
+2. Consider gas optimization for high-frequency operations
+3. Implement cost-aware operation scheduling
+4. Regular performance benchmarking

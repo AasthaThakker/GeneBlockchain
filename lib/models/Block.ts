@@ -21,6 +21,7 @@ export interface IBlock extends Document {
     
     // Network Info
     networkId: string
+    load?: number // Load level for block time variability analysis (IEEE Step 4)
     
     // Timestamps
     createdAt: Date
@@ -92,7 +93,8 @@ const blockSchema = new Schema<IBlock>({
         type: String,
         required: true,
         default: 'localhost'
-    }
+    },
+    load: Number // Load level for block time variability analysis (IEEE Step 4)
 }, {
     timestamps: { createdAt: true, updatedAt: true }
 })

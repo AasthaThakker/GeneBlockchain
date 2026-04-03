@@ -1,4 +1,5 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("hardhat-gas-reporter");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -20,5 +21,12 @@ module.exports = {
         sources: "./contracts",
         artifacts: "./artifacts",
         cache: "./cache",
+    },
+    gasReporter: {
+        enabled: true,
+        currency: "USD",
+        gasPrice: 20,
+        showTimeSpent: true,
+        showMethodSig: true,
     },
 };

@@ -11,6 +11,9 @@ interface ITransactionData {
     gasUsed: string;
     gasPrice: string;
     gasLimit: string;
+    effectiveGasPrice: string;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
     from: string;
     to: string;
     value: string;
@@ -25,6 +28,11 @@ interface ITransactionData {
     events: any[];
     relatedEntity?: any;
     networkId: string;
+    
+    // Transaction Latency Metrics
+    submissionTime?: Date;
+    confirmationTime?: Date;
+    latency?: number;
 }
 
 // POST /api/register - Register genomic data on blockchain
@@ -45,6 +53,8 @@ export async function POST(request: NextRequest) {
 
         // Register on blockchain
         const result = await registerGenomicData(pid, fileHash, ipfsCID)
+        
+        console.log(`[Blockchain] Transaction confirmed with latency: ${result.latency}ms`)
         
         // Store comprehensive transaction details
         try {
@@ -69,6 +79,8 @@ export async function POST(request: NextRequest) {
                     gasPrice: tx.gasPrice?.toString() || '0',
                     gasLimit: tx.gasLimit.toString(),
                     effectiveGasPrice: tx.gasPrice?.toString() || '0',
+                    maxFeePerGas: tx.maxFeePerGas?.toString(),
+                    maxPriorityFeePerGas: tx.maxPriorityFeePerGas?.toString(),
                     
                     // Transaction Details
                     from: tx.from,
@@ -127,6 +139,7 @@ export async function POST(request: NextRequest) {
                 ipfsCID,
                 labId,
                 labName,
+                latency: result.latency, // Add latency to response
                 registeredAt: new Date().toISOString()
             }
         })

@@ -15,6 +15,9 @@ export interface ITransactionData {
     gasUsed: string;
     gasPrice: string;
     gasLimit: string;
+    effectiveGasPrice: string;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
     from: string;
     to: string;
     value: string;
@@ -26,10 +29,21 @@ export interface ITransactionData {
     contractAddress?: string;
     functionName?: string;
     functionParameters?: any;
+    operationType?: "UPLOAD" | "ACCESS_REQUEST" | "CONSENT" | "VERIFY" | "OTHER";
+    gasCostETH?: string;
+    load?: number; // Load level for TPS analysis
     events?: any[];
     auditEventId?: any;
     relatedEntity?: any;
     networkId: string;
+    
+    // Transaction Latency Metrics
+    submissionTime?: Date;
+    confirmationTime?: Date;
+    latency?: number;
+    
+    // Smart Contract Execution Time (IEEE Step 5)
+    executionTime?: number; // Contract function execution time in milliseconds
 }
 
 interface IBlockData {
@@ -46,6 +60,7 @@ interface IBlockData {
     transactionCount: number;
     transactionHashes: string[];
     networkId: string;
+    load?: number; // Load level for block time variability analysis (IEEE Step 4)
 }
 
 interface IBlockchainStats {
