@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import { ethers } from 'ethers'
+import { ObjectId } from 'mongodb'
 
 // Get HTTP provider instead of WebSocket
 function getProvider() {
@@ -91,12 +92,12 @@ export async function storeTransaction(txData: ITransactionData): Promise<any> {
         if (!finalTxHash || finalTxHash === 'null' || finalTxHash.trim() === '') {
             // Get the next auto-increment number
             const counter = await db.collection('counters').findOneAndUpdate(
-                { _id: 'txHashCounter' },
+                { name: 'txHashCounter' },
                 { $inc: { sequence_value: 1 } },
                 { upsert: true, returnDocument: 'after' }
             );
             
-            finalTxHash = `AUTO_TX_${counter.sequence_value}`;
+            finalTxHash = `AUTO_TX_${counter?.sequence_value || 1}`;
             console.log(`[BlockchainStorage] Generated auto-increment txHash: ${finalTxHash}`);
         }
         
