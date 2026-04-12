@@ -4,14 +4,38 @@ import { useEffect, useState } from "react"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
-import type { GenomicRecord } from "@/lib/types"
-import { CheckCircle2, AlertTriangle, Shield, Hash } from "lucide-react"
+import { CheckCircle2, AlertTriangle, Shield, Hash, Database, Link } from "lucide-react"
 
-type VerifyResult = { id: string; status: "pass" | "fail" | "pending" }
+interface EncryptedFile {
+  fileId: string
+  fileName: string
+  fileType: string
+  fileHash: string
+  pid: string
+  labId: string
+  labName: string
+  uploadDate: string
+  blockchainTxHash?: string
+  onChainRecordIndex?: number
+  status: string
+  tags: string[]
+  fileSize: number
+}
+
+type VerifyResult = { 
+  fileId: string; 
+  fileName: string;
+  status: "pass" | "fail" | "pending";
+  localIntegrity?: boolean;
+  blockchainIntegrity?: boolean | null;
+  blockchainHash?: string;
+  fileHash?: string;
+  error?: string;
+}
 
 export default function LabIntegrity() {
   const { walletAddress, labId } = useAuth()
-  const [records, setRecords] = useState<GenomicRecord[]>([])
+  const [records, setRecords] = useState<EncryptedFile[]>([])
   const [loading, setLoading] = useState(true)
   const [results, setResults] = useState<VerifyResult[]>([])
   const [verifying, setVerifying] = useState(false)
@@ -19,21 +43,34 @@ export default function LabIntegrity() {
   useEffect(() => {
     if (!walletAddress) return
     const queryLabId = labId || walletAddress
-    fetch(`/api/genomic-records?labId=${queryLabId}`)
+    fetch(`/api/files?labId=${queryLabId}`)
       .then(r => r.json())
       .then(data => setRecords(data.data || []))
       .finally(() => setLoading(false))
   }, [walletAddress, labId])
 
-  const runVerification = () => {
+  const runVerification = async () => {
     setVerifying(true)
     setResults([])
-    records.forEach((record, index) => {
-      setTimeout(() => {
-        setResults(prev => [...prev, { id: record.recordId, status: "pass" }])
-        if (index === records.length - 1) setVerifying(false)
-      }, (index + 1) * 1000)
-    })
+    
+    try {
+      const response = await fetch('/api/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileIds: records.map(r => r.fileId)
+        })
+      })
+      
+      const data = await response.json()
+      if (data.success) {
+        setResults(data.verificationResults)
+      }
+    } catch (error) {
+      console.error('Verification failed:', error)
+    } finally {
+      setVerifying(false)
+    }
   }
 
   if (loading) {
@@ -66,10 +103,10 @@ export default function LabIntegrity() {
 
       <div className="flex flex-col gap-4">
         {records.map((record) => {
-          const result = results.find(r => r.id === record.recordId)
+          const result = results.find(r => r.fileId === record.fileId)
           const isPending = verifying && !result
           return (
-            <div key={record.recordId} className={`rounded-xl border p-6 transition-all ${result?.status === "pass" ? "border-success/30 bg-success/5" : result?.status === "fail" ? "border-destructive/30 bg-destructive/5" : "border-border/50 bg-card"}`}>
+            <div key={record.fileId} className={`rounded-xl border p-6 transition-all ${result?.status === "pass" ? "border-success/30 bg-success/5" : result?.status === "fail" ? "border-destructive/30 bg-destructive/5" : "border-border/50 bg-card"}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${result?.status === "pass" ? "bg-success/15" : result?.status === "fail" ? "bg-destructive/15" : "bg-secondary"}`}>
@@ -77,7 +114,7 @@ export default function LabIntegrity() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-mono text-sm font-bold text-foreground">{record.recordId}</p>
+                      <p className="font-mono text-sm font-bold text-foreground">{record.fileId}</p>
                       <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-xs text-primary">{record.fileType}</span>
                     </div>
                     <p className="mt-0.5 text-xs text-muted-foreground">PID: {record.pid}</p>
@@ -100,14 +137,61 @@ export default function LabIntegrity() {
               </div>
               <div className="mt-4 grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">On-Chain Hash (SHA-256)</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Database className="h-3 w-3" />
+                    Local Storage Hash (SHA-256)
+                  </p>
                   <p className="mt-0.5 max-w-full truncate font-mono text-xs text-foreground">{record.fileHash}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Blockchain TX</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Link className="h-3 w-3" />
+                    Blockchain TX
+                  </p>
                   <p className="mt-0.5 max-w-full truncate font-mono text-xs text-primary">{record.blockchainTxHash}</p>
                 </div>
               </div>
+              {result && (
+                <div className="mt-4 space-y-4 text-xs">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-muted-foreground">Local Integrity</p>
+                      <p className={`font-medium ${result.localIntegrity ? 'text-success' : 'text-destructive'}`}>
+                        {result.localIntegrity ? 'Valid' : 'Invalid'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Blockchain Integrity</p>
+                      <p className={`font-medium ${result.blockchainIntegrity === true ? 'text-success' : result.blockchainIntegrity === false ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        {result.blockchainIntegrity === true ? 'Valid' : result.blockchainIntegrity === false ? 'Invalid' : '- Not Available'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {result.blockchainHash && (
+                    <div className="border-t pt-4">
+                      <p className="text-muted-foreground mb-2">Hash Comparison</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-muted-foreground">MongoDB Hash</p>
+                          <p className="font-mono text-xs break-all text-foreground">{result.fileHash}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Blockchain Hash</p>
+                          <p className={`font-mono text-xs break-all ${result.fileHash === result.blockchainHash ? 'text-success' : 'text-destructive'}`}>
+                            {result.blockchainHash}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <p className={`font-medium ${result.fileHash === result.blockchainHash ? 'text-success' : 'text-destructive'}`}>
+                          {result.fileHash === result.blockchainHash ? 'Hashes Match' : 'Hashes Mismatch'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}

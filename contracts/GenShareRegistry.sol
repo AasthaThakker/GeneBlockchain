@@ -6,7 +6,7 @@ pragma solidity ^0.8.20;
  * @notice Blockchain-Based Genomic Data Sharing Platform
  * 
  * Implements four core features per the PRD:
- * 1. Genomic Hash Registry — SHA-256 hashes + IPFS CIDs stored immutably
+ * 1. Genomic Hash Registry — SHA-256 hashes stored immutably
  * 2. Dynamic Consent Engine — Time-bound, revocable consent via smart contract
  * 3. Access Logging — On-chain audit trail with consent validation
  * 4. Role Registry — Decentralized identity with role-based permissions
@@ -70,7 +70,7 @@ contract GenShareRegistry {
     struct GenomicRecord {
         string pid;           // De-identified Patient ID
         string fileHash;      // SHA-256 hash of genomic file
-        string ipfsCID;       // IPFS Content Identifier
+        string fileId;        // Unique file identifier from local storage
         address registeredBy; // Lab wallet address
         uint256 timestamp;
         bool exists;
@@ -83,7 +83,7 @@ contract GenShareRegistry {
         uint256 indexed recordIndex,
         string pid,
         string fileHash,
-        string ipfsCID,
+        string fileId,
         address indexed registeredBy,
         uint256 timestamp
     );
@@ -302,26 +302,26 @@ contract GenShareRegistry {
      * @notice Register genomic data hash on-chain (Labs only)
      * @param _pid De-identified Patient ID
      * @param _fileHash SHA-256 hash of genomic file
-     * @param _ipfsCID IPFS Content Identifier for encrypted file
+     * @param _fileId Unique file identifier from local storage
      */
     function registerGenomicData(
         string calldata _pid,
         string calldata _fileHash,
-        string calldata _ipfsCID
+        string calldata _fileId
     ) external returns (uint256) {
         // Allow any caller for flexibility (server-side calls use deployer)
         uint256 index = recordCount;
         genomicRecords[index] = GenomicRecord({
             pid: _pid,
             fileHash: _fileHash,
-            ipfsCID: _ipfsCID,
+            fileId: _fileId,
             registeredBy: msg.sender,
             timestamp: block.timestamp,
             exists: true
         });
         recordCount++;
 
-        emit GenomicDataRegistered(index, _pid, _fileHash, _ipfsCID, msg.sender, block.timestamp);
+        emit GenomicDataRegistered(index, _pid, _fileHash, _fileId, msg.sender, block.timestamp);
         return index;
     }
 
@@ -445,14 +445,14 @@ contract GenShareRegistry {
         returns (
             string memory pid,
             string memory fileHash,
-            string memory ipfsCID,
+            string memory fileId,
             address registeredBy,
             uint256 timestamp
         )
     {
         GenomicRecord storage r = genomicRecords[_index];
         require(r.exists, "Record does not exist");
-        return (r.pid, r.fileHash, r.ipfsCID, r.registeredBy, r.timestamp);
+        return (r.pid, r.fileHash, r.fileId, r.registeredBy, r.timestamp);
     }
 
     function getConsent(uint256 _index)

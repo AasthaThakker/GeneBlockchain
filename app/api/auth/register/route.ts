@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 12)
 
-        // Role enum: Lab = 2, Researcher = 3
-        const roleEnum = userRole === 'LAB' ? 2 : 3
+        // Role enum: Lab = 1, Researcher = 2 (matching smart contract)
+        const roleEnum = userRole === 'LAB' ? 1 : 2
 
         // Propose registration on-chain
         console.log(`[Register] Proposing registration for: ${walletLower} (Role: ${userRole})`);

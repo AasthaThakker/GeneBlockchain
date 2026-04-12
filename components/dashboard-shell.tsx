@@ -24,6 +24,8 @@ import {
   Users,
   UserPlus,
   HardDrive,
+  Database,
+  Network,
   type LucideIcon,
 } from "lucide-react"
 import { type ReactNode, useEffect } from "react"
@@ -48,7 +50,7 @@ const navMap: Record<NonNullable<UserRole>, NavItem[]> = {
   lab: [
     { label: "Dashboard", href: "/lab", icon: LayoutDashboard },
     { label: "Upload VCF/FASTA", href: "/lab/upload", icon: Upload },
-    { label: "IPFS Files", href: "/lab/files", icon: HardDrive },
+    { label: "Encrypted File Storage", href: "/lab/files", icon: Database },
     { label: "Registered Records", href: "/lab/records", icon: FileText },
     { label: "Integrity Check", href: "/lab/integrity", icon: CheckCircle2 },
     { label: "Audit Logs", href: "/lab/audit", icon: ScrollText },
@@ -138,9 +140,19 @@ export function DashboardShell({
         {/* Bottom Section */}
         <div className="border-t border-sidebar-border p-4">
           {/* Network Status */}
-          <div className="mb-3 flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2">
-            <Wifi className="h-3.5 w-3.5 text-success" />
-            <span className="text-xs text-sidebar-foreground/70">Hardhat Local</span>
+          <div className="mb-3">
+            <div className="flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2">
+              <Network className="h-3.5 w-3.5 text-success" />
+              <span className="text-xs text-sidebar-foreground/70">Ganache</span>
+            </div>
+            <div className="mt-2 flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2">
+              <Wifi className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-sidebar-foreground/70">Hardhat</span>
+            </div>
+            <div className="mt-2 flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2">
+              <Database className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-sidebar-foreground/70">Ethereum</span>
+            </div>
           </div>
 
           {/* Wallet */}

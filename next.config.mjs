@@ -6,6 +6,14 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals.push({
+        'mongoose': 'commonjs mongoose'
+      });
+    }
+    return config;
+  },
 }
 
 export default nextConfig

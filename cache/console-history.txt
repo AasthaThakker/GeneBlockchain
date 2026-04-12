@@ -1,0 +1,10 @@
+exit
+await contract.getHash("lab1@genomics.com");
+console.log(receipt.logs);
+const receipt = await tx.wait();
+const tx = await contract.storeHash("user123", "0xabc123");
+await contract.getHash("lab1@genomic");
+await contract.getHash("lab*");
+const contract = await ethers.getContractAt("DataStore", "ADDRESS");
+(await ethers.provider.getBlockNumber())
+.help

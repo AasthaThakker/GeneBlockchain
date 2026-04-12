@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
-import { GenomicRecord } from '@/lib/models/GenomicRecord'
+import { EncryptedFile } from '@/lib/models/EncryptedFile'
 import { AuditEventModel } from '@/lib/models/AuditEvent'
 import { registerGenomicData, isBlockchainAvailable } from '@/lib/blockchain'
 
@@ -16,7 +16,10 @@ export async function GET(request: NextRequest) {
         if (pid) query.pid = pid
         if (labId) query.labId = labId
 
-        const records = await GenomicRecord.find(query).sort({ uploadDate: -1 }).lean()
+        const records = await EncryptedFile.find(query)
+        .sort({ uploadDate: -1 })
+        .select('-encryptedData -iv') // Exclude binary data from list view
+        .lean()
 
         return NextResponse.json({ success: true, data: records })
     } catch (error) {
@@ -30,9 +33,9 @@ export async function POST(request: NextRequest) {
         await connectDB()
 
         const body = await request.json()
-        const { pid, labId, labName, fileType, ipfsCID, fileHash, tags } = body
+        const { pid, labId, labName, fileType, fileId, fileHash, tags } = body
 
-        if (!pid || !labId || !labName || !fileType || !ipfsCID || !fileHash) {
+        if (!pid || !labId || !labName || !fileType || !fileId || !fileHash) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
@@ -42,7 +45,7 @@ export async function POST(request: NextRequest) {
         const chainAvailable = await isBlockchainAvailable()
 
         if (chainAvailable) {
-            const result = await registerGenomicData(pid, fileHash, ipfsCID)
+            const result = await registerGenomicData(pid, fileHash, fileId)
             blockchainTxHash = result.txHash
             onChainRecordIndex = result.recordIndex
             console.log(`[Blockchain] GenomicData registered: txHash=${blockchainTxHash}, recordIndex=${onChainRecordIndex}`)
@@ -51,25 +54,23 @@ export async function POST(request: NextRequest) {
             console.warn('[Blockchain] Node unavailable — using offline txHash')
         }
 
-        const count = await GenomicRecord.countDocuments()
+        const count = await EncryptedFile.countDocuments()
         const recordId = `GR-${String(count + 1).padStart(3, '0')}`
 
-        const record = new GenomicRecord({
-            recordId,
-            pid,
-            labId,
-            labName,
-            fileType,
-            ipfsCID,
-            fileHash,
-            blockchainTxHash,
-            onChainRecordIndex,
-            uploadDate: new Date(),
-            status: 'Registered',
-            tags: tags || []
-        })
+        // Update existing encrypted file with blockchain info
+        const record = await EncryptedFile.findOneAndUpdate(
+            { fileId },
+            { 
+                blockchainTxHash,
+                onChainRecordIndex,
+                status: chainAvailable ? 'Registered' : 'Uploaded'
+            },
+            { new: true }
+        )
 
-        await record.save()
+        if (!record) {
+            return NextResponse.json({ error: 'File not found. Upload file first.' }, { status: 404 })
+        }
 
         // Create audit event
         const auditCount = await AuditEventModel.countDocuments()
@@ -79,9 +80,9 @@ export async function POST(request: NextRequest) {
             action: 'GenomicDataRegistered',
             actor: labId,
             actorRole: 'Lab',
-            target: recordId,
+            target: fileId,
             txHash: blockchainTxHash,
-            details: `${labName} uploaded ${fileType} file for ${pid}`
+            details: `${labName} registered ${fileType} file for ${pid}`
         })
 
         return NextResponse.json({ success: true, data: record })

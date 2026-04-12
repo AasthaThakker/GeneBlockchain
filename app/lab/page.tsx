@@ -5,12 +5,28 @@ import { DashboardShell } from "@/components/dashboard-shell"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge } from "@/components/status-badge"
 import { useAuth } from "@/lib/auth-context"
-import type { GenomicRecord, AuditEvent } from "@/lib/types"
+import type { AuditEvent } from "@/lib/types"
+
+interface EncryptedFile {
+  fileId: string
+  fileName: string
+  fileType: string
+  fileHash: string
+  pid: string
+  labId: string
+  labName: string
+  uploadDate: string
+  blockchainTxHash?: string
+  onChainRecordIndex?: number
+  status: string
+  tags: string[]
+  fileSize: number
+}
 import { FileText, Upload, CheckCircle2, ScrollText } from "lucide-react"
 
 export default function LabDashboard() {
   const { walletAddress, labId } = useAuth()
-  const [records, setRecords] = useState<GenomicRecord[]>([])
+  const [records, setRecords] = useState<EncryptedFile[]>([])
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -18,7 +34,7 @@ export default function LabDashboard() {
     if (!walletAddress) return
     const queryLabId = labId || walletAddress
     Promise.all([
-      fetch(`/api/genomic-records?labId=${queryLabId}`).then(r => r.json()),
+      fetch(`/api/files?labId=${queryLabId}`).then(r => r.json()),
       fetch(`/api/audit-events?actorRole=Lab`).then(r => r.json()),
     ]).then(([recData, audData]) => {
       setRecords(recData.data || [])
@@ -51,7 +67,7 @@ export default function LabDashboard() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/50 bg-secondary/50">
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Record ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">File ID</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Patient PID</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Type</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Date</th>
@@ -60,8 +76,8 @@ export default function LabDashboard() {
             </thead>
             <tbody className="divide-y divide-border/30">
               {records.slice(0, 5).map((r) => (
-                <tr key={r.recordId} className="transition-colors hover:bg-secondary/30">
-                  <td className="px-6 py-4 font-mono text-sm font-medium text-primary">{r.recordId}</td>
+                <tr key={r.fileId} className="transition-colors hover:bg-secondary/30">
+                  <td className="px-6 py-4 font-mono text-sm font-medium text-primary">{r.fileId}</td>
                   <td className="px-6 py-4 font-mono text-sm text-foreground">{r.pid}</td>
                   <td className="px-6 py-4"><span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-xs text-primary">{r.fileType}</span></td>
                   <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(r.uploadDate).toLocaleDateString()}</td>

@@ -5,9 +5,9 @@ import { getOperationType, calculateGasCostETH } from './operation-mapping';
 // ABI for GenShareRegistry — only the functions we use from the API routes
 const CONTRACT_ABI = [
     // Genomic Hash Registry
-    "function registerGenomicData(string calldata _pid, string calldata _fileHash, string calldata _ipfsCID) external returns (uint256)",
+    "function registerGenomicData(string calldata _pid, string calldata _fileHash, string calldata _fileId) external returns (uint256)",
     "function verifyIntegrity(uint256 _recordIndex, string calldata _fileHash) external view returns (bool matches)",
-    "function getGenomicRecord(uint256 _index) external view returns (string pid, string fileHash, string ipfsCID, address registeredBy, uint256 timestamp)",
+    "function getGenomicRecord(uint256 _index) external view returns (string pid, string fileHash, string fileId, address registeredBy, uint256 timestamp)",
     "function recordCount() external view returns (uint256)",
 
     // Dynamic Consent
@@ -34,7 +34,7 @@ const CONTRACT_ABI = [
     "function hasVoted(uint256, address) external view returns (bool)",
 
     // Events
-    "event GenomicDataRegistered(uint256 indexed recordIndex, string pid, string fileHash, string ipfsCID, address indexed registeredBy, uint256 timestamp)",
+    "event GenomicDataRegistered(uint256 indexed recordIndex, string pid, string fileHash, string fileId, address indexed registeredBy, uint256 timestamp)",
     "event ConsentGranted(uint256 indexed consentIndex, string pid, address indexed researcher, uint256 recordIndex, uint256 grantedAt, uint256 expiresAt)",
     "event ConsentRevoked(uint256 indexed consentIndex, string pid, address indexed researcher, uint256 timestamp)",
     "event DataAccessed(string pid, address indexed researcher, uint256 indexed recordIndex, uint256 indexed consentIndex, uint256 timestamp)",
@@ -79,14 +79,14 @@ function getContract() {
 export async function registerGenomicData(
     pid: string,
     fileHash: string,
-    ipfsCID: string
+    fileId: string
 ): Promise<{ txHash: string; recordIndex: number; latency?: number }> {
     const contract = getContract();
     
     // Track submission time
     const submissionTime = Date.now();
     
-    const tx = await contract.registerGenomicData(pid, fileHash, ipfsCID);
+    const tx = await contract.registerGenomicData(pid, fileHash, fileId);
     const receipt = await tx.wait();
     
     // Track confirmation time and calculate latency
@@ -119,6 +119,9 @@ export async function registerGenomicData(
             console.log(`[Blockchain] Fallback recordIndex: ${recordIndex}`);
         } catch (e) {
             console.error(`[Blockchain] Fallback failed:`, e);
+            // Use transaction receipt transactionIndex as final fallback
+            recordIndex = receipt.index || 0;
+            console.log(`[Blockchain] Using transaction index as recordIndex: ${recordIndex}`);
         }
     }
 
@@ -157,7 +160,7 @@ export async function registerGenomicData(
             functionName: functionName,
             operationType: operationType,
             gasCostETH: gasCostETH,
-            functionParameters: { pid, fileHash, ipfsCID },
+            functionParameters: { pid, fileHash, fileId },
             events: receipt.logs.map((log: any, index: number) => ({
                 name: `Event${index}`,
                 signature: log.topics[0] || '',
@@ -594,6 +597,27 @@ export async function isBlockchainAvailable(): Promise<boolean> {
 export async function getOnChainRecordCount(): Promise<number> {
     const contract = getContract();
     return Number(await contract.recordCount());
+}
+
+/**
+ * Get on-chain genomic record details
+ */
+export async function getGenomicRecord(index: number): Promise<{
+    pid: string;
+    fileHash: string;
+    fileId: string;
+    registeredBy: string;
+    timestamp: number;
+}> {
+    const contract = getContract();
+    const result = await contract.getGenomicRecord(index);
+    return {
+        pid: result[0],
+        fileHash: result[1],
+        fileId: result[2],
+        registeredBy: result[3],
+        timestamp: Number(result[4])
+    };
 }
 
 /**

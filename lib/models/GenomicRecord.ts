@@ -6,7 +6,7 @@ export interface IGenomicRecord extends Document {
     labId: string
     labName: string
     fileType: 'VCF' | 'FASTA'
-    ipfsCID: string
+    fileId: string  // Unique file identifier from local storage
     fileHash: string
     blockchainTxHash: string
     uploadDate: Date
@@ -39,7 +39,7 @@ const genomicRecordSchema = new Schema<IGenomicRecord>({
         enum: ['VCF', 'FASTA'],
         required: true
     },
-    ipfsCID: {
+    fileId: {
         type: String,
         required: true
     },

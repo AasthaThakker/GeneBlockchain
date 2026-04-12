@@ -1,5 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("hardhat-gas-reporter");
+require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -15,6 +16,10 @@ module.exports = {
     networks: {
         localhost: {
             url: "http://127.0.0.1:8545",
+        },
+        ganache: {
+            url: process.env.GANACHE_URL,
+            accounts: [process.env.PRIVATE_KEY],
         },
     },
     paths: {

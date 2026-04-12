@@ -17,11 +17,11 @@ export default function ResearcherSearch() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/genomic-records')
+    fetch('/api/files')
       .then(r => r.json())
       .then(data => {
         const records: SearchableRecord[] = (data.data || []).map((r: Record<string, unknown>) => ({
-          id: (r as { recordId: string }).recordId,
+          id: (r as { fileId: string }).fileId,
           pid: (r as { pid: string }).pid,
           fileType: (r as { fileType: string }).fileType,
           uploadDate: (r as { uploadDate: string }).uploadDate,
@@ -31,6 +31,7 @@ export default function ResearcherSearch() {
         setAllRecords(records)
         setResults(records)
       })
+      .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
 

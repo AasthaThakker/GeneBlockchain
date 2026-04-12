@@ -12,6 +12,13 @@ export interface IUser extends Document {
   researcherId?: string
   createdAt: Date
   updatedAt: Date
+  // Patient demographic information
+  age?: number
+  gender?: 'Male' | 'Female' | 'Other'
+  geographicRegion?: string
+  chronicDiseases?: string
+  medications?: string
+  familyHistory?: string
 }
 
 const userSchema = new Schema<IUser>({
@@ -48,6 +55,26 @@ const userSchema = new Schema<IUser>({
     type: String
   },
   researcherId: {
+    type: String
+  },
+  // Patient demographic information
+  age: {
+    type: Number
+  },
+  gender: {
+    type: String,
+    enum: ['Male', 'Female', 'Other']
+  },
+  geographicRegion: {
+    type: String
+  },
+  chronicDiseases: {
+    type: String
+  },
+  medications: {
+    type: String
+  },
+  familyHistory: {
     type: String
   }
 }, {

@@ -1,7 +1,7 @@
 # GenShare — Blockchain-Based Genomic Data Sharing Platform
 A decentralized platform for secure, auditable, and consent-driven exchange of genomic datasets between patients, laboratories, and researchers using blockchain smart contracts.
 
-**Built with:** Next.js · MongoDB · Solidity (Hardhat) · Ethers.js · Tailwind CSS
+**Built with:** Next.js 16.1.6 · MongoDB · Solidity (Hardhat) · Ethers.js · Tailwind CSS · IPFS (Kubo)
 
 ---
 
@@ -36,6 +36,7 @@ Ensure the following are installed on your system:
 | **IPFS (Kubo)** | v0.28+ | [dist.ipfs.tech](https://dist.ipfs.tech/#kubo) |
 | **MetaMask** | Latest | [metamask.io](https://metamask.io/) (browser extension) |
 | **Git** | Latest | [git-scm.com](https://git-scm.com/) |
+| **Windows** | 10/11 | Required for junction point fixes |
 
 ---
 
@@ -203,6 +204,8 @@ npm run dev
 ```
 
 The app will be available at: **http://localhost:3000**
+
+> **Note:** This project uses webpack instead of Turbopack to avoid Mongoose junction point issues on Windows. The `--webpack` flag ensures compatibility with MongoDB connections.
 
 ---
 
@@ -507,13 +510,33 @@ This usually means the CID was not parsed correctly from the `ipfs add` output. 
 ### Downloaded file is gibberish
 This is expected when accessing a file via the **IPFS gateway** directly (`http://127.0.0.1:8080/ipfs/<CID>`) — files are AES-256 encrypted before being stored. Use the **Download** button in the app (Lab → IPFS Files, or Patient → Download Records) which decrypts the file automatically.
 
+### Turbopack Error on Windows
+If you encounter "FATAL: An unexpected Turbopack error occurred" with junction point issues:
+- **Solution:** The project is configured to use webpack instead of Turbopack
+- **Command:** Use `npm run dev` (already configured with `--webpack` flag)
+- **Alternative:** Use `npm run dev:turbo` if you want to test with Turbopack (may cause Mongoose issues)
+
+### "POST /api/auth/login 500" Error
+This occurs when Mongoose cannot create junction points on Windows:
+- **Cause:** Turbopack's junction point creation fails with Mongoose
+- **Fix:** Ensure you're using `npm run dev` (webpack mode)
+- **Verify:** Check that the development server starts without Turbopack errors
+
+### MongoDB Connection Issues
+If the login endpoint returns 500 errors:
+1. Verify MongoDB is running: `mongosh`
+2. Check connection string in `.env`: `DATABASE_URL="mongodb://localhost:27017/genomic-data-platform"`
+3. Ensure database is seeded: `npm run seed`
+4. Restart the development server after fixing MongoDB issues
+
 ---
 
 ## NPM Scripts Reference
 
 | Script | Command | Description |
 |--------|---------|-------------|
-| `npm run dev` | `next dev` | Start development server |
+| `npm run dev` | `next dev --webpack` | Start development server (webpack mode) |
+| `npm run dev:turbo` | `next dev --turbo` | Start with Turbopack (experimental) |
 | `npm run build` | `next build` | Production build |
 | `npm run seed` | `node scripts/seed-simple.js` | Seed MongoDB with test data |
 | `npm run hardhat:node` | `npx hardhat node` | Start local blockchain |
@@ -544,6 +567,7 @@ npm run hardhat:deploy
 # 6. Terminal 4: Start app
 npm run dev
 # → Open http://localhost:3000
+# Note: Uses webpack by default to avoid Turbopack issues on Windows
 ```
 
 ---

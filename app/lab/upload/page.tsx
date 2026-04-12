@@ -24,6 +24,10 @@ export default function LabUpload() {
   const [pid, setPid] = useState("")
   const [fileName, setFileName] = useState("")
   const [uploadResult, setUploadResult] = useState<Record<string, string> | null>(null)
+  // Patient demographic information
+  const [patientAge, setPatientAge] = useState("")
+  const [patientGender, setPatientGender] = useState("")
+  const [geographicRegion, setGeographicRegion] = useState("")
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -52,6 +56,10 @@ export default function LabUpload() {
       formData.append('labId', currentLabId)
       formData.append('labName', currentLabName)
       formData.append('fileType', fileType)
+      // Patient demographic information
+      formData.append('patientAge', patientAge)
+      formData.append('patientGender', patientGender)
+      formData.append('geographicRegion', geographicRegion)
 
       const res = await fetch('/api/upload', {
         method: 'POST',
@@ -107,6 +115,10 @@ export default function LabUpload() {
     setPid("")
     setFileName("")
     setUploadResult(null)
+    // Clear demographic fields
+    setPatientAge("")
+    setPatientGender("")
+    setGeographicRegion("")
   }
 
   return (
@@ -156,8 +168,46 @@ export default function LabUpload() {
               <p className="mt-1 text-xs text-muted-foreground">Enter the de-identified Patient ID. Do NOT enter real patient names.</p>
             </div>
 
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div>
+                <Label className="text-sm text-foreground">Age</Label>
+                <Input 
+                  value={patientAge} 
+                  onChange={(e) => setPatientAge(e.target.value)} 
+                  placeholder="25" 
+                  type="number" 
+                  min="0" 
+                  max="150"
+                  className="mt-2 border-border bg-secondary text-foreground" 
+                />
+              </div>
+              <div>
+                <Label className="text-sm text-foreground">Gender</Label>
+                <Select value={patientGender} onValueChange={setPatientGender}>
+                  <SelectTrigger className="mt-2 border-border bg-secondary text-foreground">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm text-foreground">Geographic Region</Label>
+                <Input 
+                  value={geographicRegion} 
+                  onChange={(e) => setGeographicRegion(e.target.value)} 
+                  placeholder="South Asia" 
+                  className="mt-2 border-border bg-secondary text-foreground" 
+                />
+              </div>
+            </div>
+            <p className="mb-6 text-xs text-muted-foreground">Patient demographic information helps in research analysis and is stored securely with the genomic data.</p>
+
             <Button type="submit" disabled={!fileName || !fileType || !pid} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
-              <Upload className="h-4 w-4" /> Encrypt &amp; Upload to IPFS
+              <Upload className="h-4 w-4" /> Encrypt &amp; Upload to MongoDB
             </Button>
           </form>
         </div>

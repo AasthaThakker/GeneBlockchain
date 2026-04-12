@@ -1,38 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
-import { registerGenomicData } from '@/lib/blockchain'
-
-// IPFS functions with fallback for when library is not installed
-let ipfsFunctions: {
-  uploadToIPFS: Function
-  checkIPFSAvailability: Function
-  pinToIPFS: Function
-  downloadFromIPFS: Function
-} | null = null
-
-// Try to load IPFS functions
-try {
-  const ipfsModule = require('@/lib/ipfs-http.js')
-  ipfsFunctions = {
-    uploadToIPFS: ipfsModule.uploadToIPFS,
-    checkIPFSAvailability: ipfsModule.checkIPFSAvailability,
-    pinToIPFS: ipfsModule.pinToIPFS,
-    downloadFromIPFS: ipfsModule.downloadFromIPFS
-  }
-  console.log('✅ IPFS HTTP module loaded successfully')
-} catch (error) {
-  console.warn('IPFS HTTP module not available. Please install IPFS daemon and ensure it is running on port 5001.')
-  console.error('Module loading error:', error)
-}
+import { generateFileId, encryptData, calculateSHA256 } from '@/lib/encryption'
+import { registerGenomicData, isBlockchainAvailable } from '@/lib/blockchain'
+import connectDB from '@/lib/mongodb'
+import { EncryptedFile } from '@/lib/models/EncryptedFile'
+import { AuditEventModel } from '@/lib/models/AuditEvent'
 
 export async function POST(request: NextRequest) {
   try {
+    await connectDB()
+
     const formData = await request.formData()
     const file = formData.get('file') as File
     const pid = formData.get('pid') as string
     const labId = formData.get('labId') as string
     const labName = formData.get('labName') as string
     const fileType = formData.get('fileType') as string
+    const tags = formData.get('tags') as string
+    // Patient demographic information
+    const patientAge = formData.get('patientAge') as string
+    const patientGender = formData.get('patientGender') as string
+    const geographicRegion = formData.get('geographicRegion') as string
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -43,74 +30,74 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert file to buffer
-    const buffer = Buffer.from(await file.arrayBuffer())
+    const fileBuffer = Buffer.from(await file.arrayBuffer())
     
-    // Generate file hash (SHA-256)
-    const fileHash = crypto.createHash('sha256').update(buffer).digest('hex')
+    // Calculate SHA-256 hash of original file
+    const fileHash = calculateSHA256(fileBuffer)
     
-    // Check IPFS availability
-    const ipfsAvailable = ipfsFunctions ? await ipfsFunctions.checkIPFSAvailability() : false
+    // Encrypt file with AES-256
+    const { encrypted, iv } = encryptData(fileBuffer)
     
-    let ipfsCID = ''
-    let encrypted = false
-    
-    if (ipfsAvailable) {
-      try {
-        // Upload to IPFS with encryption
-        const encryptionKey = process.env.IPFS_ENCRYPTION_KEY
-        const uploadResult = await ipfsFunctions!.uploadToIPFS(buffer, file.name, encryptionKey)
-        ipfsCID = uploadResult.cid
-        encrypted = uploadResult.encrypted
-        
-        // Pin the file to prevent garbage collection
-        await ipfsFunctions!.pinToIPFS(ipfsCID)
-        
-        console.log(`[IPFS] Upload successful: CID=${ipfsCID}, encrypted=${encrypted}`)
-        
-        // Register on blockchain and store transaction details
-        try {
-            const registerResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    pid,
-                    fileHash,
-                    ipfsCID,
-                    labId,
-                    labName
-                })
-            })
-            
-            if (registerResponse.ok) {
-                const registerResult = await registerResponse.json()
-                console.log(`[Blockchain] Registration successful: ${registerResult.data.txHash}`)
-            } else {
-                console.error('[Blockchain] Registration failed:', await registerResponse.text())
-            }
-        } catch (blockchainError) {
-            console.error('[Blockchain] Registration error:', blockchainError)
-        }
-      } catch (ipfsError) {
-        console.error('IPFS upload failed:', ipfsError)
-        return NextResponse.json({ 
-          error: 'IPFS upload failed', 
-          details: (ipfsError as Error).message 
-        }, { status: 500 })
-      }
+    // Generate unique file ID
+    const fileId = generateFileId()
+
+    // Register on blockchain
+    let blockchainTxHash = ''
+    let onChainRecordIndex = -1
+    const chainAvailable = await isBlockchainAvailable()
+
+    if (chainAvailable) {
+      const result = await registerGenomicData(pid, fileHash, fileId)
+      blockchainTxHash = result.txHash
+      onChainRecordIndex = result.recordIndex
+      console.log(`[Blockchain] GenomicData registered: txHash=${blockchainTxHash}, recordIndex=${onChainRecordIndex}`)
     } else {
-      return NextResponse.json({ 
-        error: 'IPFS not available',
-        message: 'IPFS daemon not running on port 5001',
-        suggestion: '1. Install IPFS: Download from https://dist.ipfs.tech/kubo/v0.28.0/kubo_v0.28.0_windows-amd64.zip\n2. Add to PATH\n3. Run: ipfs init\n4. Run: ipfs daemon --api 127.0.0.1:5001'
-      }, { status: 503 })
+      blockchainTxHash = `0xOFFLINE_${Date.now().toString(16)}`
+      console.warn('[Blockchain] Node unavailable — using offline txHash')
     }
+
+    // Create encrypted file record
+    const encryptedFile = new EncryptedFile({
+      fileId,
+      fileName: file.name,
+      fileType,
+      encryptedData: encrypted,
+      iv,
+      fileHash,
+      pid,
+      labId,
+      labName,
+      blockchainTxHash,
+      onChainRecordIndex,
+      status: chainAvailable ? 'Registered' : 'Uploaded',
+      tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+      fileSize: file.size,
+      // Patient demographic information
+      patientAge: patientAge ? parseInt(patientAge) : undefined,
+      patientGender: patientGender as 'Male' | 'Female' | 'Other' || undefined,
+      geographicRegion: geographicRegion || undefined
+    })
+
+    await encryptedFile.save()
+
+    // Create audit event
+    const auditCount = await AuditEventModel.countDocuments()
+    await AuditEventModel.create({
+      eventId: `AE-${String(auditCount + 1).padStart(3, '0')}`,
+      timestamp: new Date(),
+      action: 'FileUploaded',
+      actor: labId,
+      actorRole: 'Lab',
+      target: fileId,
+      txHash: blockchainTxHash,
+      details: `${labName} uploaded encrypted file for ${pid} (${file.name}) - Age: ${patientAge || 'N/A'}, Gender: ${patientGender || 'N/A'}, Region: ${geographicRegion || 'N/A'}`
+    })
 
     // Return successful upload result
     return NextResponse.json({
       success: true,
       data: {
+        fileId,
         fileName: file.name,
         fileSize: file.size,
         fileType,
@@ -118,8 +105,9 @@ export async function POST(request: NextRequest) {
         labId,
         labName,
         fileHash,
-        ipfsCID,
-        encrypted,
+        blockchainTxHash,
+        onChainRecordIndex,
+        status: chainAvailable ? 'Registered' : 'Uploaded',
         uploadDate: new Date().toISOString()
       }
     })
@@ -133,41 +121,40 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper function to get file from IPFS
+// GET endpoint for upload status and metadata
 export async function GET(request: NextRequest) {
   try {
-    if (!ipfsFunctions) {
-      return NextResponse.json({ 
-        error: 'IPFS not available',
-        message: 'IPFS HTTP client not available',
-        suggestion: 'Ensure IPFS daemon is running on port 5001 and HTTP API is enabled'
-      }, { status: 503 })
-    }
+    await connectDB()
 
     const { searchParams } = new URL(request.url)
-    const cid = searchParams.get('cid')
-    const decryptionKey = searchParams.get('decrypt') === 'true' ? process.env.IPFS_ENCRYPTION_KEY : undefined
+    const fileId = searchParams.get('fileId')
+    const labId = searchParams.get('labId')
+    const pid = searchParams.get('pid')
 
-    if (!cid) {
-      return NextResponse.json({ error: 'CID parameter required' }, { status: 400 })
-    }
-
-    // Download from IPFS
-    const fileBuffer = await ipfsFunctions.downloadFromIPFS(cid, decryptionKey)
-    
-    // Return file as response
-    return new NextResponse(fileBuffer, {
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${cid}"`
+    if (fileId) {
+      // Get specific file by ID
+      const file = await EncryptedFile.findOne({ fileId })
+      if (!file) {
+        return NextResponse.json({ error: 'File not found' }, { status: 404 })
       }
-    })
+      // Return metadata only (exclude encrypted data)
+      const { encryptedData, iv, ...metadata } = file.toObject()
+      return NextResponse.json({ success: true, data: metadata })
+    } else {
+      // List files with filters
+      const query: Record<string, string> = {}
+      if (pid) query.pid = pid
+      if (labId) query.labId = labId
 
+      const files = await EncryptedFile.find(query)
+        .sort({ uploadDate: -1 })
+        .select('-encryptedData -iv') // Exclude binary data from list view
+        .lean()
+
+      return NextResponse.json({ success: true, data: files })
+    }
   } catch (error) {
-    console.error('Download error:', error)
-    return NextResponse.json({ 
-      error: 'Download failed', 
-      details: (error as Error).message 
-    }, { status: 500 })
+    console.error('Get upload files error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
