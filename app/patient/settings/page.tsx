@@ -24,7 +24,7 @@ export default function PatientSettings() {
 
   const handleSaveSettings = async () => {
     try {
-      const response = await fetch('/api/users/me', {
+      const response = await fetch(`/api/users/me?walletAddress=${walletAddress}&role=PATIENT`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

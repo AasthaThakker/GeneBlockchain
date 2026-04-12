@@ -261,14 +261,17 @@ export function LandingPage() {
           <div className="flex items-center gap-4">
             <ThemeToggle />
             <nav className="hidden md:flex items-center gap-6">
-              <a href="/features" className="text-sm font-medium hover:text-primary transition-colors">
+              <a href="/features" className="text-sm font-medium hover:text-primary transition-all duration-300 hover:scale-105 relative group">
                 Features
+                <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
               </a>
-              <a href="/explorer" className="text-sm font-medium hover:text-primary transition-colors">
+              <a href="/explorer" className="text-sm font-medium hover:text-primary transition-all duration-300 hover:scale-105 relative group">
                 Explorer
+                <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
               </a>
-              <a href="#roles" className="text-sm font-medium hover:text-primary transition-colors">
+              <a href="#roles" className="text-sm font-medium hover:text-primary transition-all duration-300 hover:scale-105 relative group">
                 Access Portal
+                <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
               </a>
             </nav>
           </div>
@@ -278,9 +281,12 @@ export function LandingPage() {
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(20,184,166,0.15)_0%,_transparent_50%)]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 animate-pulse-slow" />
+        <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-secondary/10 to-transparent rounded-full blur-3xl animate-float-delayed" />
         <div className="relative mx-auto flex max-w-7xl flex-col items-center px-6 pb-20 pt-24 text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5">
-            <Lock className="h-3.5 w-3.5 text-primary" />
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 hover:bg-primary/20 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/20">
+            <Lock className="h-3.5 w-3.5 text-primary animate-pulse" />
             <span className="text-xs font-medium text-primary">Blockchain Secured</span>
           </div>
 
@@ -317,7 +323,7 @@ export function LandingPage() {
                 const el = document.getElementById("roles")
                 el?.scrollIntoView({ behavior: "smooth" })
               }}
-              className="gap-2 border-border text-foreground hover:bg-secondary"
+              className="gap-2 border-border text-foreground hover:bg-secondary ripple-effect hover-lift transition-all duration-300"
             >
               Access Portal
               <ArrowRight className="h-4 w-4" />
@@ -364,8 +370,8 @@ export function LandingPage() {
 
           <div className="mt-16 grid gap-8 md:grid-cols-3">
             {/* Patient Card */}
-            <div className="rounded-xl border border-border/50 bg-card p-8">
-              <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+            <div className="rounded-xl border border-white/20 dark:border-white/10 bg-white/10 dark:bg-black/20 backdrop-blur-md p-8 shadow-xl hover:shadow-2xl hover:shadow-primary/20 dark:hover:shadow-primary/30 transition-all duration-300 hover:scale-105 hover:bg-white/20 dark:hover:bg-black/30">
+              <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/20 dark:bg-primary/10 backdrop-blur-sm border border-white/30 dark:border-white/20">
                 <Wallet className="h-6 w-6 text-primary" />
               </div>
               <h3 className="mb-2 text-xl font-bold text-foreground">Patient Portal</h3>
@@ -375,7 +381,7 @@ export function LandingPage() {
               <Button
                 onClick={handlePatientConnect}
                 disabled={loading}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                className="w-full bg-primary/80 dark:bg-primary/70 backdrop-blur-sm text-primary-foreground hover:bg-primary/90 dark:hover:bg-primary/80 border border-white/30 dark:border-white/20 transition-all duration-300 hover:scale-105 ripple-effect hover-lift"
               >
                 <Wallet className="mr-2 h-4 w-4" />
                 Connect MetaMask
@@ -383,8 +389,8 @@ export function LandingPage() {
             </div>
 
             {/* Lab Card */}
-            <div className="rounded-xl border border-border/50 bg-card p-8">
-              <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-chart-2/10">
+            <div className="rounded-xl border border-white/20 dark:border-white/10 bg-white/10 dark:bg-black/20 backdrop-blur-md p-8 shadow-xl hover:shadow-2xl hover:shadow-chart-2/20 dark:hover:shadow-chart-2/30 transition-all duration-300 hover:scale-105 hover:bg-white/20 dark:hover:bg-black/30">
+              <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-chart-2/20 dark:bg-chart-2/10 backdrop-blur-sm border border-white/30 dark:border-white/20">
                 <FlaskConical className="h-6 w-6 text-chart-2" />
               </div>
               <h3 className="mb-2 text-xl font-bold text-foreground">Lab / Pharmacy</h3>
@@ -396,7 +402,7 @@ export function LandingPage() {
                   <Button
                     variant="outline"
                     onClick={() => { setLabView("login"); setError(null); setSuccessMessage(null) }}
-                    className="w-full border-chart-2/30 text-chart-2 hover:bg-chart-2/10"
+                    className="w-full border-chart-2/30 text-chart-2 hover:bg-chart-2/10 backdrop-blur-sm bg-white/5 dark:bg-black/10 hover:bg-white/15 dark:hover:bg-black/20 border border-white/20 dark:border-white/10 transition-all duration-300 hover:scale-105 ripple-effect hover-lift"
                   >
                     <FlaskConical className="mr-2 h-4 w-4" />
                     Lab Login
@@ -405,7 +411,7 @@ export function LandingPage() {
                     variant="outline"
                     onClick={handleLabMetaMask}
                     disabled={loading}
-                    className="w-full border-chart-2/30 text-chart-2 hover:bg-chart-2/10"
+                    className="w-full border-chart-2/30 text-chart-2 hover:bg-chart-2/10 backdrop-blur-sm bg-white/5 dark:bg-black/10 hover:bg-white/15 dark:hover:bg-black/20 border border-white/20 dark:border-white/10 transition-all duration-300 hover:scale-105 ripple-effect hover-lift"
                   >
                     <Wallet className="mr-2 h-4 w-4" />
                     Connect MetaMask (Lab)
@@ -413,7 +419,7 @@ export function LandingPage() {
                   <Button
                     variant="outline"
                     onClick={() => { setLabView("register"); setError(null); setSuccessMessage(null) }}
-                    className="w-full border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                    className="w-full border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 backdrop-blur-sm bg-white/5 dark:bg-black/10 hover:bg-white/15 dark:hover:bg-black/20 border border-white/20 dark:border-white/10 transition-all duration-300 hover:scale-105 ripple-effect hover-lift"
                   >
                     <UserPlus className="mr-2 h-4 w-4" />
                     Register as Lab
@@ -567,8 +573,8 @@ export function LandingPage() {
             </div>
 
             {/* Researcher Card */}
-            <div className="rounded-xl border border-border/50 bg-card p-8">
-              <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-chart-3/10">
+            <div className="rounded-xl border border-white/20 dark:border-white/10 bg-white/10 dark:bg-black/20 backdrop-blur-md p-8 shadow-xl hover:shadow-2xl hover:shadow-chart-3/20 dark:hover:shadow-chart-3/30 transition-all duration-300 hover:scale-105 hover:bg-white/20 dark:hover:bg-black/30">
+              <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-chart-3/20 dark:bg-chart-3/10 backdrop-blur-sm border border-white/30 dark:border-white/20">
                 <Microscope className="h-6 w-6 text-chart-3" />
               </div>
               <h3 className="mb-2 text-xl font-bold text-foreground">Research Portal</h3>

@@ -1,157 +1,105 @@
 import { NextResponse } from 'next/server'
+import { ethers } from 'ethers'
 import connectDB from '@/lib/mongodb'
-import { BlockchainTransactionModel } from '@/lib/models/BlockchainTransaction'
+import { EncryptedFile } from '@/lib/models/EncryptedFile'
+import { User } from '@/lib/models/User'
 
 export async function GET() {
     try {
+        // Connect to Ganache blockchain
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'http://127.0.0.1:8545')
+        
+        // Get real blockchain data
+        const latestBlockNumber = await provider.getBlockNumber()
+        const latestBlock = await provider.getBlock('latest')
+        const network = await provider.getNetwork()
+        const gasPrice = await provider.getFeeData()
+        
+        // Get recent blocks with transaction details
+        const blocks = []
+        for (let i = 0; i < Math.min(10, latestBlockNumber + 1); i++) {
+            const blockNumber = latestBlockNumber - i
+            const block = await provider.getBlock(blockNumber, true)
+            if (block) {
+                blocks.push({
+                    number: block.number,
+                    hash: block.hash,
+                    timestamp: block.timestamp,
+                    transactions: block.transactions.length,
+                    gasUsed: block.gasUsed.toString(),
+                    gasLimit: block.gasLimit.toString(),
+                    miner: block.miner
+                })
+            }
+        }
+        
+        // Get database stats
         await connectDB()
+        const totalRecords = await EncryptedFile.countDocuments()
         
-        // Get latest blockchain transactions from MongoDB
-        const transactions = await BlockchainTransactionModel.find({})
-            .sort({ timestamp: -1 })
-            .limit(50)
-            .select('txHash blockNumber timestamp functionName operationType gasUsed gasPrice status latency executionTime')
-            .lean()
+        // Get member counts from database
+        const [patients, labs, researchers] = await Promise.all([
+            User.countDocuments({ role: 'PATIENT' }),
+            User.countDocuments({ role: 'LAB' }),
+            User.countDocuments({ role: 'RESEARCHER' })
+        ])
         
-        // Get blockchain blocks for block chain visualization
-        const blocks = await BlockchainTransactionModel.find({ blockNumber: { $exists: true } })
-            .sort({ blockNumber: -1 })
+        // Get recent files from database for records
+        const recentFiles = await EncryptedFile.find({})
+            .sort({ uploadDate: -1 })
             .limit(10)
-            .select('blockNumber timestamp')
+            .select('fileId fileName pid labId uploadDate blockchainTxHash')
             .lean()
         
-        // Get unique blocks with transaction counts
-        const blockStats = await BlockchainTransactionModel.aggregate([
-            { $match: { blockNumber: { $exists: true } } },
-            { $group: { _id: '$blockNumber', count: { $sum: 1 }, gasUsed: { $avg: '$gasUsed' }, timestamp: { $first: '$timestamp' } } },
-            { $sort: { _id: -1 } },
-            { $limit: 10 }
-        ])
+        // Format records from database
+        const records = recentFiles.map((file: any, index: number) => ({
+            index: index + 1,
+            pid: file.pid,
+            fileHash: file.fileId, // Using fileId as hash reference
+            ipfsCID: `Qm${file.fileId.slice(-44)}`, // Mock IPFS CID
+            registeredBy: file.labId,
+            timestamp: new Date(file.uploadDate).getTime() / 1000
+        }))
         
-        // Calculate stats
-        const totalRecords = await BlockchainTransactionModel.countDocuments()
-        const totalEvents = await BlockchainTransactionModel.countDocuments({ 
-            $or: [
-                { functionName: { $regex: 'grantConsent|logAccess' } },
-                { operationType: { $in: ['CONSENT', 'ACCESS_REQUEST'] } }
-            ]
-        })
-        
-        const operationStats = await BlockchainTransactionModel.aggregate([
-            { $match: { operationType: { $exists: true } } },
-            { $group: { _id: '$operationType', count: { $sum: 1 } } },
-            { $sort: { count: -1 } }
-        ])
-        
-        // Get recent events for event log
-        const recentEvents = await BlockchainTransactionModel.find({
-            $or: [
-                { functionName: { $regex: 'grantConsent|logAccess' } },
-                { operationType: { $in: ['CONSENT', 'ACCESS_REQUEST'] } }
-            ]
-        })
-        .sort({ timestamp: -1 })
-        .limit(20)
-        .select('txHash timestamp functionName operationType functionParameters blockNumber')
-        .lean()
-        
-        // Format events for display
-        const formattedEvents = recentEvents.map((tx: any) => {
-            let eventName = 'Unknown'
-            let eventArgs: any = {}
-            
-            if (tx.functionName === 'registerGenomicData') {
-                eventName = 'GenomicDataRegistered'
-                eventArgs = {
-                    recordIndex: tx.functionParameters?.recordIndex || 0,
-                    pid: tx.functionParameters?.pid || '',
-                    fileHash: tx.functionParameters?.fileHash || '',
-                    ipfsCID: tx.functionParameters?.ipfsCID || '',
-                    registeredBy: tx.from || ''
-                }
-            } else if (tx.functionName === 'grantConsent') {
-                eventName = 'ConsentGranted'
-                eventArgs = {
-                    consentIndex: tx.functionParameters?.recordIndex || 0,
-                    pid: tx.functionParameters?.pid || '',
-                    researcher: tx.functionParameters?.researcher || '',
-                    recordIndex: tx.functionParameters?.recordIndex || 0,
-                    grantedAt: Math.floor((tx.timestamp?.getTime() || Date.now()) / 1000),
-                    expiresAt: Math.floor((tx.timestamp?.getTime() || Date.now()) / 1000) + (30 * 24 * 60 * 60), // 30 days
-                    revoked: false
-                }
-            } else if (tx.functionName === 'logAccess') {
-                eventName = 'DataAccessed'
-                eventArgs = {
-                    pid: tx.functionParameters?.pid || '',
-                    researcher: tx.functionParameters?.researcher || '',
-                    recordIndex: tx.functionParameters?.recordIndex || 0,
-                    consentIndex: tx.functionParameters?.consentIndex || 0,
-                    timestamp: Math.floor((tx.timestamp?.getTime() || Date.now()) / 1000)
-                }
+        // Mock events based on database activity
+        const events = recentFiles.map((file: any) => ({
+            name: 'GenomicDataRegistered',
+            blockNumber: latestBlockNumber,
+            txHash: file.blockchainTxHash || `0x${Math.random().toString(16).substring(2, 66)}`,
+            args: {
+                recordIndex: 1,
+                pid: file.pid,
+                fileHash: file.fileId,
+                ipfsCID: `Qm${file.fileId.slice(-44)}`,
+                registeredBy: file.labId
             }
-            
-            return {
-                name: eventName,
-                blockNumber: tx.blockNumber,
-                txHash: tx.txHash,
-                args: eventArgs
-            }
-        }).filter((event: any) => event.name !== 'Unknown')
-        
-        // Get network info
-        const latestBlock = blocks.length > 0 ? Math.max(...blocks.map((b: any) => b.blockNumber)) : 0
+        }))
         
         return NextResponse.json({
             success: true,
-            blockNumber: latestBlock,
-            gasPrice: '20', // Hardhat default
-            chainId: '31337', // Hardhat chain ID
-            networkName: 'Hardhat Network',
-            blocks: blockStats.map((block: any) => ({
-                number: block._id,
-                hash: `0x${Math.random().toString(16).substring(2, 14)}padded`, // Generate mock hash
-                timestamp: block.timestamp.getTime() / 1000,
-                transactions: block.count,
-                gasUsed: Math.round(block.gasUsed || 0).toString(),
-                gasLimit: '30000000', // Hardhat default
-                miner: '0x5FbDB2315678afecb367f032d93F642f64180aa3' // Deployer address
-            })),
+            blockNumber: latestBlockNumber,
+            gasPrice: ethers.formatUnits(gasPrice.gasPrice || 0, 'gwei'),
+            chainId: network.chainId.toString(),
+            networkName: network.name === 'hardhat' ? 'Hardhat Network' : network.name,
+            blocks,
             stats: {
                 totalRecords,
-                totalConsents: operationStats.find((s: any) => s._id === 'CONSENT')?.count || 0,
-                totalProposals: 0, // Not implemented in current transactions
-                members: { patients: 0, labs: 0, researchers: 0 }, // Not tracked in current schema
-                totalEvents: totalEvents
+                totalConsents: 0, // Will be implemented with proper contract events
+                totalProposals: 0, // Will be implemented with proper contract events
+                members: { patients, labs, researchers },
+                totalEvents: events.length
             },
-            records: transactions.map((tx: any) => ({
-                index: tx.blockNumber || 0,
-                pid: tx.functionParameters?.pid || `TX-${tx.txHash?.substring(0, 8)}`,
-                fileHash: tx.functionParameters?.fileHash || tx.txHash?.substring(0, 20) + '...',
-                ipfsCID: tx.functionParameters?.ipfsCID || `Qm${tx.txHash?.substring(0, 44)}`,
-                registeredBy: tx.from || '0xUnknown',
-                timestamp: tx.timestamp?.getTime() / 1000 || Date.now()
-            })),
-            consents: transactions
-                .filter((tx: any) => tx.operationType === 'CONSENT')
-                .map((tx: any, index: number) => ({
-                    index: index + 1,
-                    pid: tx.functionParameters?.pid || `CONSENT-${index}`,
-                    researcher: tx.functionParameters?.researcher || '0xResearcher',
-                    recordIndex: tx.functionParameters?.recordIndex || index,
-                    grantedAt: tx.timestamp?.getTime() / 1000 || Date.now(),
-                    expiresAt: (tx.timestamp?.getTime() || Date.now()) + (30 * 24 * 60 * 60 * 1000),
-                    revoked: false
-                })),
-            proposals: [], // Not implemented
-            events: formattedEvents
+            records,
+            consents: [], // Will be implemented with proper contract events
+            proposals: [], // Will be implemented with proper contract events
+            events
         })
         
     } catch (error: unknown) {
-        console.error('[MongoDB Explorer] Error:', error)
+        console.error('[Blockchain Explorer] Error:', error)
         const err = error as { message?: string }
         return NextResponse.json(
-            { error: `Failed to fetch MongoDB data: ${err.message || 'Unknown error'}` },
+            { error: `Failed to fetch blockchain data: ${err.message || 'Unknown error'}` },
             { status: 500 }
         )
     }

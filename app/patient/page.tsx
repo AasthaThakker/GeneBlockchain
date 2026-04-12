@@ -68,8 +68,8 @@ export default function PatientDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30">
-              {records.slice(0, 5).map((r) => (
-                <tr key={r.recordId} className="transition-colors hover:bg-secondary/30">
+              {records.slice(0, 5).map((r, index) => (
+                <tr key={r._id || r.recordId || `record-${index}`} className="transition-colors hover:bg-secondary/30">
                   <td className="px-6 py-4 font-mono text-sm font-medium text-primary">{r.recordId}</td>
                   <td className="px-6 py-4 text-sm text-foreground">{r.labName}</td>
                   <td className="px-6 py-4"><span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-xs text-primary">{r.fileType}</span></td>
