@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import { EncryptedFile } from '@/lib/models/EncryptedFile'
+import { User } from '@/lib/models/User'
 import { generateFileId, encryptData, calculateSHA256 } from '@/lib/encryption'
 import { registerGenomicData, isBlockchainAvailable } from '@/lib/blockchain'
 import { AuditEventModel } from '@/lib/models/AuditEvent'
@@ -32,7 +33,21 @@ export async function GET(request: NextRequest) {
                 .select('-encryptedData -iv') // Exclude binary data from list view
                 .lean()
 
-            return NextResponse.json({ success: true, data: files })
+            // Get patient demographic information for each file
+            const filesWithPatientInfo = await Promise.all(
+                files.map(async (file) => {
+                    const patient = await User.findOne({ pid: file.pid, role: 'PATIENT' })
+                        .select('age gender geographicRegion chronicDiseases medications familyHistory')
+                        .lean()
+                    
+                    return {
+                        ...file,
+                        patientInfo: patient || {}
+                    }
+                })
+            )
+
+            return NextResponse.json({ success: true, data: filesWithPatientInfo })
         }
     } catch (error) {
         console.error('Get files error:', error)

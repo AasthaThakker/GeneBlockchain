@@ -35,13 +35,21 @@ export async function POST(request: NextRequest) {
                 let blockchainHash = null
                 if (file.onChainRecordIndex !== undefined && file.onChainRecordIndex >= 0) {
                     try {
-                        // Get on-chain record to compare hashes
-                        const { getGenomicRecord } = await import('@/lib/blockchain')
-                        const onChainRecord = await getGenomicRecord(file.onChainRecordIndex)
-                        blockchainHash = onChainRecord.fileHash
+                        // Check if record exists on-chain first
+                        const { genomicRecordExists, getGenomicRecord } = await import('@/lib/blockchain')
+                        const recordExists = await genomicRecordExists(file.onChainRecordIndex)
                         
-                        // Compare MongoDB hash with blockchain hash
-                        blockchainIntegrity = file.fileHash === blockchainHash
+                        if (recordExists) {
+                            // Get on-chain record to compare hashes
+                            const onChainRecord = await getGenomicRecord(file.onChainRecordIndex)
+                            blockchainHash = onChainRecord.fileHash
+                            
+                            // Compare MongoDB hash with blockchain hash
+                            blockchainIntegrity = file.fileHash === blockchainHash
+                        } else {
+                            console.warn(`[Blockchain] Record at index ${file.onChainRecordIndex} does not exist on-chain`)
+                            blockchainIntegrity = false
+                        }
                     } catch (error) {
                         console.warn('[Blockchain] On-chain verification failed:', error)
                         blockchainIntegrity = false
@@ -79,13 +87,21 @@ export async function POST(request: NextRequest) {
             let blockchainHash = null
             if (file.onChainRecordIndex !== undefined && file.onChainRecordIndex >= 0) {
                 try {
-                    // Get on-chain record to compare hashes
-                    const { getGenomicRecord } = await import('@/lib/blockchain')
-                    const onChainRecord = await getGenomicRecord(file.onChainRecordIndex)
-                    blockchainHash = onChainRecord.fileHash
+                    // Check if record exists on-chain first
+                    const { genomicRecordExists, getGenomicRecord } = await import('@/lib/blockchain')
+                    const recordExists = await genomicRecordExists(file.onChainRecordIndex)
                     
-                    // Compare MongoDB hash with blockchain hash
-                    blockchainIntegrity = file.fileHash === blockchainHash
+                    if (recordExists) {
+                        // Get on-chain record to compare hashes
+                        const onChainRecord = await getGenomicRecord(file.onChainRecordIndex)
+                        blockchainHash = onChainRecord.fileHash
+                        
+                        // Compare MongoDB hash with blockchain hash
+                        blockchainIntegrity = file.fileHash === blockchainHash
+                    } else {
+                        console.warn(`[Blockchain] Record at index ${file.onChainRecordIndex} does not exist on-chain`)
+                        blockchainIntegrity = false
+                    }
                 } catch (error) {
                     console.warn('[Blockchain] On-chain verification failed:', error)
                     blockchainIntegrity = false

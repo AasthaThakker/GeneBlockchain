@@ -61,7 +61,7 @@ const navMap: Record<NonNullable<UserRole>, NavItem[]> = {
     { label: "Dashboard", href: "/researcher", icon: LayoutDashboard },
     { label: "Search Metadata", href: "/researcher/search", icon: Search },
     { label: "My Requests", href: "/researcher/requests", icon: KeyRound },
-    { label: "Active Permissions", href: "/researcher/permissions", icon: ShieldCheck },
+    // { label: "Active Permissions", href: "/researcher/permissions", icon: ShieldCheck },
     { label: "Audit History", href: "/researcher/audit", icon: History },
     { label: "Team Management", href: "/researcher/team", icon: Users },
     { label: "Registration Requests", href: "/researcher/registrations", icon: UserPlus },

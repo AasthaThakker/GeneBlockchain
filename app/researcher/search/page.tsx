@@ -27,6 +27,7 @@ export default function ResearcherSearch() {
           uploadDate: (r as { uploadDate: string }).uploadDate,
           status: (r as { status: string }).status,
           tags: (r as { tags: string[] }).tags || [],
+          patientInfo: (r as { patientInfo?: Record<string, unknown> }).patientInfo || {},
         }))
         setAllRecords(records)
         setResults(records)
@@ -47,7 +48,13 @@ export default function ResearcherSearch() {
         (r) =>
           r.pid.toLowerCase().includes(lower) ||
           r.fileType.toLowerCase().includes(lower) ||
-          r.tags.some((t) => t.toLowerCase().includes(lower))
+          r.tags.some((t) => t.toLowerCase().includes(lower)) ||
+          (r.patientInfo?.age?.toString().includes(lower)) ||
+          (r.patientInfo?.gender?.toLowerCase().includes(lower)) ||
+          (r.patientInfo?.geographicRegion?.toLowerCase().includes(lower)) ||
+          (r.patientInfo?.chronicDiseases?.toLowerCase().includes(lower)) ||
+          (r.patientInfo?.medications?.toLowerCase().includes(lower)) ||
+          (r.patientInfo?.familyHistory?.toLowerCase().includes(lower))
       )
     )
   }
@@ -63,9 +70,9 @@ export default function ResearcherSearch() {
   return (
     <DashboardShell role="researcher">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Search Metadata</h1>
+        <h1 className="text-2xl font-bold text-foreground">Search Genomic Datasets</h1>
         <p className="mt-1 text-muted-foreground">
-          Search de-identified genomic datasets by type, tags, or PID. No personal information is shown.
+          Search genomic datasets by PID, file type, tags, or demographic information. Patient demographic data helps researchers make informed access requests.
         </p>
       </div>
 
@@ -75,7 +82,7 @@ export default function ResearcherSearch() {
           <Input
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Search by PID, file type, or tags (e.g., 'VCF', 'Oncology', 'South Asian')..."
+            placeholder="Search by PID, file type, tags, age, gender, region, diseases (e.g., 'VCF', 'Oncology', 'South Asian', '45')..."
             className="border-border bg-card pl-10 text-foreground"
           />
         </div>
@@ -92,7 +99,7 @@ export default function ResearcherSearch() {
         {results.map((record) => (
           <div key={record.id} className="rounded-xl border border-border/50 bg-card p-6 transition-colors hover:border-border">
             <div className="flex items-start justify-between">
-              <div>
+              <div className="flex-1">
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-sm font-bold text-primary">{record.id}</span>
                   <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-xs text-primary">{record.fileType}</span>
@@ -101,11 +108,45 @@ export default function ResearcherSearch() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   PID: {record.pid} | Uploaded: {record.uploadDate}
                 </p>
+                
+                {/* Patient Demographic Information */}
+                {record.patientInfo && Object.keys(record.patientInfo).length > 0 && (
+                  <div className="mt-3 p-3 bg-secondary/30 rounded-lg">
+                    <h4 className="text-sm font-semibold text-foreground mb-2">Patient Demographics</h4>
+                    <div className="grid grid-cols-3 gap-4 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Age:</span>
+                        <span className="ml-2 font-medium text-foreground">{record.patientInfo.age || 'NA'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Gender:</span>
+                        <span className="ml-2 font-medium text-foreground">{record.patientInfo.gender || 'NA'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Region:</span>
+                        <span className="ml-2 font-medium text-foreground">{record.patientInfo.geographicRegion || 'NA'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Chronic Diseases:</span>
+                        <span className="ml-2 font-medium text-foreground">{record.patientInfo.chronicDiseases || 'NA'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Medications:</span>
+                        <span className="ml-2 font-medium text-foreground">{record.patientInfo.medications || 'NA'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Family History:</span>
+                        <span className="ml-2 font-medium text-foreground">{record.patientInfo.familyHistory || 'NA'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
+              
               <Button
                 size="sm"
                 variant="outline"
-                className="border-primary/30 text-primary hover:bg-primary/10"
+                className="border-primary/30 text-primary hover:bg-primary/10 ml-4"
                 onClick={() => router.push(`/researcher/requests?dataset=${record.id}&pid=${record.pid}`)}
               >
                 Request Access

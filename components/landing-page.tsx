@@ -284,60 +284,120 @@ export function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 animate-pulse-slow" />
         <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-3xl animate-float" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-secondary/10 to-transparent rounded-full blur-3xl animate-float-delayed" />
-        <div className="relative mx-auto flex max-w-7xl flex-col items-center px-6 pb-20 pt-24 text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 hover:bg-primary/20 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/20">
-            <Lock className="h-3.5 w-3.5 text-primary animate-pulse" />
-            <span className="text-xs font-medium text-primary">Blockchain Secured</span>
-          </div>
+        <div className="relative mx-auto flex max-w-7xl flex-col px-6 pb-20 pt-24">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Side - DNA Helix Animation */}
+            <div className="flex justify-center lg:justify-end h-full">
+              <div className="relative w-full h-full">
+                <div className="absolute -inset-4 rounded-2xl bg-primary/5 blur-3xl" />
+                <div className="relative rounded-xl border border-border/50 shadow-2xl shadow-primary/10 bg-card/50 backdrop-blur-sm p-8 h-full flex flex-col">
+                  <div className="text-center mb-4">
+                    <h3 className="text-lg font-semibold text-foreground">DNA Double Helix Structure</h3>
+                  </div>
+                  <div className="dna-container flex-1">
+                    {Array.from({ length: 30 }).map((_, i) => (
+                      <div key={i} className="dna-row" style={{ animationDelay: `${i * 0.1}s` }}>
+                        <span className="dot left" />
+                        <span className="line" />
+                        <span className="dot right" />
+                      </div>
+                    ))}
+                  </div>
+                  <style jsx>{`
+                    .dna-container {
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      justify-content: center;
+                      perspective: 800px;
+                      min-height: 400px;
+                      gap: 0;
+                    }
 
-          <h1 className="max-w-4xl text-balance text-4xl font-bold leading-tight tracking-tight text-foreground md:text-6xl">
-            Decentralized Genomic Data Sharing with{" "}
-            <span className="text-primary">Dynamic Consent</span>
-          </h1>
+                    .dna-row {
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      margin: 0;
+                      animation: rotate 2s linear infinite;
+                    }
 
-          <p className="mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
-            GenShare enables secure, auditable, and consent-driven exchange of genomic datasets
-            between patients, laboratories, and researchers using blockchain smart contracts.
-          </p>
+                    .dot {
+                      width: 12px;
+                      height: 12px;
+                      border-radius: 50%;
+                      box-shadow: 0 0 15px currentColor;
+                    }
 
-          {error && (
-            <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-              {error}
+                    .left {
+                      background: #14b8a6;
+                      margin-right: 15px;
+                    }
+
+                    .right {
+                      background: #6366f1;
+                      margin-left: 15px;
+                    }
+
+                    .line {
+                      width: 60px;
+                      height: 3px;
+                      background: linear-gradient(90deg, #14b8a6, #6366f1);
+                      border-radius: 1.5px;
+                    }
+
+                    @keyframes rotate {
+                      0% {
+                        transform: rotateY(0deg) translateZ(25px);
+                      }
+                      100% {
+                        transform: rotateY(360deg) translateZ(25px);
+                      }
+                    }
+                  `}</style>
+                </div>
+              </div>
             </div>
-          )}
 
-          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
-            <Button
-              size="lg"
-              onClick={handlePatientConnect}
-              disabled={loading}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
-            >
-              <Wallet className="h-4 w-4" />
-              Connect Wallet (Patient)
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => {
-                const el = document.getElementById("roles")
-                el?.scrollIntoView({ behavior: "smooth" })
-              }}
-              className="gap-2 border-border text-foreground hover:bg-secondary ripple-effect hover-lift transition-all duration-300"
-            >
-              Access Portal
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
+            {/* Right Side - Text Content */}
+            <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 hover:bg-primary/20 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/20">
+                <Lock className="h-3.5 w-3.5 text-primary animate-pulse" />
+                <span className="text-xs font-medium text-primary">Blockchain Secured</span>
+              </div>
 
-          {/* DNA Image */}
-          <div className="relative mt-16 w-full max-w-2xl">
-            <div className="absolute -inset-4 rounded-2xl bg-primary/5 blur-3xl" />
-            <img
-              src="/images/dna-helix.jpg"
-              alt="DNA double helix visualization"
-              className="relative rounded-xl border border-border/50 shadow-2xl shadow-primary/10"
-            />
+              <h1 className="max-w-2xl text-balance text-4xl font-bold leading-tight tracking-tight text-foreground md:text-6xl">
+                Decentralized Genomic Data Sharing Platform with{" "}
+                <span className="text-primary">Dynamic Consent</span>
+              </h1>
+
+              <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
+                GenShare enables secure, auditable, and consent-driven exchange of genomic datasets
+                between patients, laboratories, and researchers using blockchain & smart contracts.
+              </p>
+
+              {error && (
+                <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+
+              <div className="mt-10 flex flex-col items-center lg:items-start gap-4 sm:flex-row">
+              
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => {
+                    const el = document.getElementById("roles")
+                    el?.scrollIntoView({ behavior: "smooth" })
+                  }}
+                  className="gap-2 border-border text-foreground hover:bg-secondary ripple-effect hover-lift transition-all duration-300"
+                >
+                  Access Portal
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -402,7 +462,7 @@ export function LandingPage() {
                   <Button
                     variant="outline"
                     onClick={() => { setLabView("login"); setError(null); setSuccessMessage(null) }}
-                    className="w-full border-chart-2/30 text-chart-2 hover:bg-chart-2/10 backdrop-blur-sm bg-white/5 dark:bg-black/10 hover:bg-white/15 dark:hover:bg-black/20 border border-white/20 dark:border-white/10 transition-all duration-300 hover:scale-105 ripple-effect hover-lift"
+                    className="w-full border-chart-2/30 text-chart-2 hover:bg-chart-2/10 backdrop-blur-sm bg-secondary/50 hover:bg-chart-2/20 border border-chart-2/20 transition-all duration-300 hover:scale-105 ripple-effect hover-lift"
                   >
                     <FlaskConical className="mr-2 h-4 w-4" />
                     Lab Login
@@ -411,7 +471,7 @@ export function LandingPage() {
                     variant="outline"
                     onClick={handleLabMetaMask}
                     disabled={loading}
-                    className="w-full border-chart-2/30 text-chart-2 hover:bg-chart-2/10 backdrop-blur-sm bg-white/5 dark:bg-black/10 hover:bg-white/15 dark:hover:bg-black/20 border border-white/20 dark:border-white/10 transition-all duration-300 hover:scale-105 ripple-effect hover-lift"
+                    className="w-full border-chart-2/30 text-chart-2 hover:bg-chart-2/10 backdrop-blur-sm bg-secondary/50 hover:bg-chart-2/20 border border-chart-2/20 transition-all duration-300 hover:scale-105 ripple-effect hover-lift"
                   >
                     <Wallet className="mr-2 h-4 w-4" />
                     Connect MetaMask (Lab)
@@ -419,7 +479,7 @@ export function LandingPage() {
                   <Button
                     variant="outline"
                     onClick={() => { setLabView("register"); setError(null); setSuccessMessage(null) }}
-                    className="w-full border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 backdrop-blur-sm bg-white/5 dark:bg-black/10 hover:bg-white/15 dark:hover:bg-black/20 border border-white/20 dark:border-white/10 transition-all duration-300 hover:scale-105 ripple-effect hover-lift"
+                    className="w-full border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 backdrop-blur-sm bg-secondary/50 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all duration-300 hover:scale-105 ripple-effect hover-lift"
                   >
                     <UserPlus className="mr-2 h-4 w-4" />
                     Register as Lab

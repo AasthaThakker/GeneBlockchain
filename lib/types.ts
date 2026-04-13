@@ -64,6 +64,15 @@ export interface SearchableRecord {
   uploadDate: string
   tags: string[]
   status: string
+  // Patient demographic information for researchers
+  patientInfo?: {
+    age?: number
+    gender?: 'Male' | 'Female' | 'Other'
+    geographicRegion?: string
+    chronicDiseases?: string
+    medications?: string
+    familyHistory?: string
+  }
 }
 
 export interface UserProfile {

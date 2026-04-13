@@ -8,6 +8,7 @@ const CONTRACT_ABI = [
     "function registerGenomicData(string calldata _pid, string calldata _fileHash, string calldata _fileId) external returns (uint256)",
     "function verifyIntegrity(uint256 _recordIndex, string calldata _fileHash) external view returns (bool matches)",
     "function getGenomicRecord(uint256 _index) external view returns (string pid, string fileHash, string fileId, address registeredBy, uint256 timestamp)",
+    "function genomicRecords(uint256) external view returns (string pid, string fileHash, string fileId, address registeredBy, uint256 timestamp, bool exists)",
     "function recordCount() external view returns (uint256)",
 
     // Dynamic Consent
@@ -610,14 +611,48 @@ export async function getGenomicRecord(index: number): Promise<{
     timestamp: number;
 }> {
     const contract = getContract();
-    const result = await contract.getGenomicRecord(index);
-    return {
-        pid: result[0],
-        fileHash: result[1],
-        fileId: result[2],
-        registeredBy: result[3],
-        timestamp: Number(result[4])
-    };
+    
+    try {
+        // First check if record exists by calling the contract's public mapping
+        const record = await contract.genomicRecords(index);
+        
+        // Check if the record exists (the exists flag should be true)
+        if (!record.exists) {
+            throw new Error(`Genomic record at index ${index} does not exist or has been marked as non-existent`);
+        }
+        
+        // If record exists, get the full record data
+        const result = await contract.getGenomicRecord(index);
+        return {
+            pid: result[0],
+            fileHash: result[1],
+            fileId: result[2],
+            registeredBy: result[3],
+            timestamp: Number(result[4])
+        };
+    } catch (error: any) {
+        // Handle contract revert errors gracefully
+        if (error.message && error.message.includes('Record does not exist')) {
+            throw new Error(`Genomic record at index ${index} does not exist on-chain`);
+        }
+        if (error.message && error.message.includes('could not decode result data')) {
+            throw new Error(`Genomic record at index ${index} returned empty data - record may not exist`);
+        }
+        throw error;
+    }
+}
+
+/**
+ * Check if a genomic record exists on-chain
+ */
+export async function genomicRecordExists(index: number): Promise<boolean> {
+    const contract = getContract();
+    try {
+        const record = await contract.genomicRecords(index);
+        return record.exists;
+    } catch (error) {
+        return false;
+    }
 }
 
 /**

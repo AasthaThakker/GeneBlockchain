@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@/lib/auth-context"
+import { DashboardShell } from "@/components/dashboard-shell"
 import { Button } from "@/components/ui/button"
 import {
     CheckCircle2,
@@ -116,28 +117,29 @@ export default function LabRegistrationsPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <FlaskConical className="h-6 w-6 text-chart-2" />
-                        Lab Registration Requests
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        Vote on pending lab registration applications. Majority approval required.
-                    </p>
+        <DashboardShell role="lab">
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                            <FlaskConical className="h-6 w-6 text-chart-2" />
+                            Lab Registration Requests
+                        </h1>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Vote on pending lab registration applications. Majority approval required.
+                        </p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={fetchRequests}
+                        disabled={loading}
+                        className="gap-2"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                        Refresh
+                    </Button>
                 </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={fetchRequests}
-                    disabled={loading}
-                    className="gap-2"
-                >
-                    <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                    Refresh
-                </Button>
-            </div>
 
             {error && (
                 <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -273,5 +275,6 @@ export default function LabRegistrationsPage() {
                 </div>
             )}
         </div>
+        </DashboardShell>
     )
 }

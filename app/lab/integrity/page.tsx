@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
-import { CheckCircle2, AlertTriangle, Shield, Hash, Database, Link } from "lucide-react"
+import { CheckCircle2, AlertTriangle, Shield, Hash, Database, Link, Upload, RefreshCw } from "lucide-react"
 
 interface EncryptedFile {
   fileId: string
@@ -39,15 +39,71 @@ export default function LabIntegrity() {
   const [loading, setLoading] = useState(true)
   const [results, setResults] = useState<VerifyResult[]>([])
   const [verifying, setVerifying] = useState(false)
+  const [registering, setRegistering] = useState(false)
+  const [unregisteredCount, setUnregisteredCount] = useState(0)
 
   useEffect(() => {
     if (!walletAddress) return
     const queryLabId = labId || walletAddress
-    fetch(`/api/files?labId=${queryLabId}`)
-      .then(r => r.json())
-      .then(data => setRecords(data.data || []))
-      .finally(() => setLoading(false))
+    
+    // Fetch records and unregistered count
+    Promise.all([
+      fetch(`/api/files?labId=${queryLabId}`).then(r => r.json()),
+      fetch(`/api/register-blockchain?labId=${queryLabId}`).then(r => r.json())
+    ]).then(([filesData, unregisteredData]) => {
+      setRecords(filesData.data || [])
+      setUnregisteredCount(unregisteredData.count || 0)
+    }).catch(error => {
+      console.error('Failed to fetch data:', error)
+    }).finally(() => setLoading(false))
   }, [walletAddress, labId])
+
+  const registerOnBlockchain = async () => {
+    setRegistering(true)
+    
+    try {
+      // Get files that need to be registered
+      const response = await fetch(`/api/register-blockchain?labId=${labId || walletAddress}`)
+      const data = await response.json()
+      
+      if (!data.success || data.data.length === 0) {
+        alert('No files need to be registered on blockchain.')
+        return
+      }
+      
+      // Register all unregistered files
+      const registerResponse = await fetch('/api/register-blockchain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileIds: data.data.map((file: any) => file.fileId)
+        })
+      })
+      
+      const registerData = await registerResponse.json()
+      
+      if (registerData.success) {
+        alert(`Successfully registered ${registerData.summary.successful} files on blockchain. ${registerData.summary.failed} files failed.`)
+        
+        // Refresh data
+        const queryLabId = labId || walletAddress
+        Promise.all([
+          fetch(`/api/files?labId=${queryLabId}`).then(r => r.json()),
+          fetch(`/api/register-blockchain?labId=${queryLabId}`).then(r => r.json())
+        ]).then(([filesData, unregisteredData]) => {
+          setRecords(filesData.data || [])
+          setUnregisteredCount(unregisteredData.count || 0)
+        })
+      } else {
+        alert('Failed to register files on blockchain: ' + (registerData.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Blockchain registration failed:', error)
+      alert('Failed to register files on blockchain. Please try again.')
+    } finally {
+      setRegistering(false)
+    }
+  }
 
   const runVerification = async () => {
     setVerifying(true)
@@ -94,10 +150,32 @@ export default function LabIntegrity() {
             <h3 className="font-semibold text-foreground">Hash Verification Engine</h3>
             <p className="mt-1 text-sm text-muted-foreground">Compares SHA-256 hash stored on blockchain with the re-computed hash from IPFS file</p>
           </div>
-          <Button onClick={runVerification} disabled={verifying || records.length === 0} className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
-            <Shield className="h-4 w-4" />
-            {verifying ? "Verifying..." : "Run Verification"}
-          </Button>
+          <div className="flex items-center gap-3">
+            {unregisteredCount > 0 && (
+              <Button 
+                onClick={registerOnBlockchain} 
+                disabled={registering} 
+                variant="outline"
+                className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10 gap-2"
+              >
+                {registering ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Registering...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    Register {unregisteredCount} on Blockchain
+                  </>
+                )}
+              </Button>
+            )}
+            <Button onClick={runVerification} disabled={verifying || records.length === 0} className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
+              <Shield className="h-4 w-4" />
+              {verifying ? "Verifying..." : "Run Verification"}
+            </Button>
+          </div>
         </div>
       </div>
 
