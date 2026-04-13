@@ -1,5 +1,15 @@
 const { ethers } = require('ethers');
 
+// Import centralized ABI (convert to JS format)
+const GENOMIC_ABI = [
+    "function registerGenomicData(string calldata _pid, string calldata _fileHash, string calldata _fileId)"
+];
+
+// Utility functions
+function isValidSHA256(hash) {
+    return /^[a-f0-9]{64}$/i.test(hash);
+}
+
 async function decodeBlockchainTransaction() {
     try {
         console.log("=== Decoding Blockchain Transaction Data ===\n");
@@ -7,13 +17,8 @@ async function decodeBlockchainTransaction() {
         // The transaction input data from the blockchain
         const txInput = "0x0acc207e00000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000075049442d30303100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004039373831396362633631653935346237313337623463613764346135386334303537323334636362343363336265663836633433366238313638363331393165000000000000000000000000000000000000000000000000000000000000002346494c455f313737353834303436393232345f353643443234463032394539363131370000000000000000000000000000000000000000000000000000000000";
         
-        // Contract ABI for decoding
-        const CONTRACT_ABI = [
-            "function registerGenomicData(string calldata _pid, string calldata _fileHash, string calldata _fileId)"
-        ];
-        
         // Create interface to decode
-        const iface = new ethers.Interface(CONTRACT_ABI);
+        const iface = new ethers.Interface(GENOMIC_ABI);
         
         // Decode the transaction input
         const decoded = iface.parseTransaction({ data: txInput });
@@ -35,8 +40,7 @@ async function decodeBlockchainTransaction() {
         console.log("File ID:", fileId);
         
         // Verify hash format
-        const isSHA256 = /^[a-f0-9]{64}$/i.test(fileHash);
-        console.log("Hash Format Valid:", isSHA256 ? "Yes (SHA-256)" : "No");
+        console.log("Hash Format Valid:", isValidSHA256(fileHash) ? "Yes (SHA-256)" : "No");
         
         // Show transaction details
         console.log("\n=== Transaction Details ===");

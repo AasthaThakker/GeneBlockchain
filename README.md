@@ -1,7 +1,7 @@
-# GenShare — Blockchain-Based Genomic Data Sharing Platform
+# GenShare - Blockchain-Based Genomic Data Sharing Platform
 A decentralized platform for secure, auditable, and consent-driven exchange of genomic datasets between patients, laboratories, and researchers using blockchain smart contracts.
 
-**Built with:** Next.js 16.1.6 · MongoDB · Solidity (Hardhat) · Ethers.js · Tailwind CSS · IPFS (Kubo)
+**Built with:** Next.js 16.1.6 · MongoDB · Solidity (Hardhat) · Ethers.js · Tailwind CSS
 
 ---
 
@@ -15,12 +15,11 @@ A decentralized platform for secure, auditable, and consent-driven exchange of g
 6. [Start the Blockchain (Hardhat)](#6-start-the-blockchain-hardhat)
 7. [Deploy the Smart Contract](#7-deploy-the-smart-contract)
 8. [Start the Application](#8-start-the-application)
-9. [IPFS Setup (File Storage)](#9-ipfs-setup-file-storage)
-10. [Login Credentials](#10-login-credentials)
-11. [Project Structure](#11-project-structure)
-12. [Smart Contract Details](#12-smart-contract-details)
-13. [API Endpoints](#13-api-endpoints)
-14. [Troubleshooting](#14-troubleshooting)
+9. [Login Credentials](#9-login-credentials)
+10. [Project Structure](#10-project-structure)
+11. [Smart Contract Details](#11-smart-contract-details)
+12. [API Endpoints](#12-api-endpoints)
+13. [Troubleshooting](#13-troubleshooting)
 
 ---
 
@@ -33,7 +32,6 @@ Ensure the following are installed on your system:
 | **Node.js** | v18 or later | [nodejs.org](https://nodejs.org/) |
 | **npm** | v9 or later | Included with Node.js |
 | **MongoDB** | v6 or later | [mongodb.com](https://www.mongodb.com/try/download/community) |
-| **IPFS (Kubo)** | v0.28+ | [dist.ipfs.tech](https://dist.ipfs.tech/#kubo) |
 | **MetaMask** | Latest | [metamask.io](https://metamask.io/) (browser extension) |
 | **Git** | Latest | [git-scm.com](https://git-scm.com/) |
 | **Windows** | 10/11 | Required for junction point fixes |
@@ -71,12 +69,6 @@ HARDHAT_PRIVATE_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf
 
 # Contract address — set after running deploy (Step 7)
 NEXT_PUBLIC_CONTRACT_ADDRESS=""
-
-# IPFS Configuration
-IPFS_BINARY_PATH="E:\kubo_v0.28.0_windows-amd64\kubo\ipfs.exe"  # Path to your ipfs binary
-IPFS_API_URL="http://127.0.0.1:5001"
-IPFS_GATEWAY_URL="http://127.0.0.1:8080"
-IPFS_ENCRYPTION_KEY="your-secret-encryption-key"  # AES-256 key for file encryption
 ```
 
 > **⚠️ Important:** The `NEXT_PUBLIC_CONTRACT_ADDRESS` will be filled in after Step 7 (deploying the smart contract).
@@ -209,99 +201,7 @@ The app will be available at: **http://localhost:3000**
 
 ---
 
-## 9. IPFS Setup (File Storage)
-
-GenShare uses **IPFS (InterPlanetary File System)** to store genomic files in a decentralized manner. Files are **encrypted with AES-256-CBC** before being uploaded to IPFS.
-
-### Installation
-
-1. **Download Kubo** (IPFS CLI) from [dist.ipfs.tech](https://dist.ipfs.tech/#kubo)
-2. Extract to a folder (e.g., `E:\kubo_v0.28.0_windows-amd64\kubo\`)
-3. Initialize IPFS (one-time setup):
-
-```bash
-# Using full path (Windows)
-& "E:\kubo_v0.28.0_windows-amd64\kubo\ipfs.exe" init
-
-# Or if added to PATH
-ipfs init
-```
-
-### Start the IPFS Daemon
-
-Open a **dedicated terminal** (keep it running alongside Hardhat and Next.js):
-
-```bash
-& "E:\kubo_v0.28.0_windows-amd64\kubo\ipfs.exe" daemon
-```
-
-**Expected output:**
-```
-Initializing daemon...
-API server listening on /ip4/127.0.0.1/tcp/5001
-Gateway server listening on /ip4/127.0.0.1/tcp/8080
-Daemon is ready
-```
-
-This starts three services:
-
-| Service | URL | Purpose |
-|---------|-----|----------|
-| **API** | `http://127.0.0.1:5001` | IPFS Web UI — manage your node, browse pins |
-| **Gateway** | `http://127.0.0.1:8080` | Access files by CID (e.g., `http://127.0.0.1:8080/ipfs/<CID>`) |
-| **Swarm** | Port 4001 | P2P connections with other IPFS nodes |
-
-### Update `.env`
-
-Set the `IPFS_BINARY_PATH` in your `.env` to the full path of your `ipfs.exe`:
-
-```env
-IPFS_BINARY_PATH="E:\kubo_v0.28.0_windows-amd64\kubo\ipfs.exe"
-```
-
-### How IPFS Storage Works in GenShare
-
-```
-┌──────────────┐    AES-256     ┌──────────────┐    ipfs add     ┌──────────┐
-│  Lab uploads  │──────────────►│  Encrypted   │──────────────►│  IPFS    │
-│  VCF/FASTA   │   encrypt      │  file buffer │   + pin         │  Node    │
-└──────────────┘                └──────────────┘                └──────────┘
-                                                                     │
-                                                                     │ CID
-                                                                     ▼
-                                ┌──────────────┐    register     ┌──────────┐
-                                │  MongoDB     │◄───────────────│ Hardhat  │
-                                │  (metadata)  │   txHash        │ (chain)  │
-                                └──────────────┘                └──────────┘
-```
-
-1. **Upload:** Lab uploads a genomic file → encrypted with AES-256 → stored on IPFS → CID returned
-2. **Register:** File hash (SHA-256) + CID registered on blockchain for tamper-proof verification
-3. **View:** Lab users see all files in **IPFS Files** page (`/lab/files`) with CID, encryption badge, and gateway links
-4. **Download:** Authorized users download via the app → file is fetched from IPFS → decrypted server-side → original file returned
-5. **Verify:** Raw file on IPFS gateway (`http://127.0.0.1:8080/ipfs/<CID>`) shows encrypted (gibberish) content — this is by design
-
-### Useful IPFS Commands
-
-```bash
-# List all pinned files
-& "path\to\ipfs.exe" pin ls
-
-# View raw file content by CID
-& "path\to\ipfs.exe" cat <CID>
-
-# Check IPFS node status
-& "path\to\ipfs.exe" id
-
-# Get IPFS version
-& "path\to\ipfs.exe" version
-```
-
-> **⚠️ Keep the IPFS daemon running!** File upload and download features require the IPFS daemon to be active.
-
----
-
-## 10. Login Credentials
+## 9. Login Credentials
 
 ### Patient Portal (MetaMask)
 Connect MetaMask with any of these wallet addresses:
@@ -309,75 +209,69 @@ Connect MetaMask with any of these wallet addresses:
 |---|---|
 | `0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18` | PID-742d35 |
 | `0x8ba1f109551bD432803012645Ac136ddd64DBA72` | PID-8ba1f1 |
-| `0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B` | PID-Ab5801 |
 
 ### Lab Portal (Email/Password or MetaMask)
 | Email | Password | Role |
 |---|---|---|
 | `lab1@genomics.com` | `lab123` | Lab Admin |
 | `lab2@genomics.com` | `lab123` | Lab User |
-| `lab3@genomics.com` | `lab123` | Lab User |
 
 ### Researcher Portal (Email/Password or MetaMask)
 | Email | Password | Role |
 |---|---|---|
 | `researcher1@university.edu` | `research123` | Researcher Admin |
 | `researcher2@university.edu` | `research123` | Researcher |
-| `researcher3@university.edu` | `research123` | Researcher |
 
 ---
 
-## 11. Project Structure
+## 10. Project Structure
 
 ```
 genomic-data-platform/
-├── app/                          # Next.js App Router pages
-│   ├── api/                      # API routes
-│   │   ├── auth/                 # Authentication (connect, login)
-│   │   ├── genomic-records/      # CRUD for genomic records
-│   │   ├── access-requests/      # Access request management
-│   │   ├── consents/             # Consent management
-│   │   ├── audit-events/         # Audit trail
-│   │   ├── upload/               # IPFS file upload & download
-│   │   ├── ipfs/files/           # List IPFS files with metadata
-│   │   └── blockchain-status/    # Blockchain health check
-│   ├── patient/                  # Patient dashboard pages
-│   ├── lab/                      # Lab dashboard pages
-│   │   ├── upload/               # Upload VCF/FASTA page
-│   │   └── files/                # IPFS Files page (view all stored files)
-│   ├── researcher/               # Researcher dashboard pages
-│   └── features/                 # Platform features page
-├── contracts/                    # Solidity smart contracts
-│   └── GenShareRegistry.sol      # Main contract
-├── scripts/                      # Utility scripts
-│   ├── deploy.js                 # Contract deployment
-│   └── seed-simple.js            # Database seeding
-├── lib/                          # Shared libraries
-│   ├── blockchain.ts             # Blockchain integration (ethers.js)
-│   ├── ipfs-cli.ts               # IPFS CLI client (add, pin, cat, encrypt/decrypt)
-│   ├── auth-context.tsx          # Authentication context
-│   ├── mongodb.ts                # MongoDB connection
-│   └── models/                   # Mongoose models
-├── components/                   # React UI components
-│   ├── landing-page.tsx          # Landing page
-│   ├── dashboard-shell.tsx       # Dashboard layout
-│   ├── theme-toggle.tsx          # Dark/Light theme toggle
-│   └── ui/                       # shadcn/ui components
-├── hardhat.config.js             # Hardhat configuration
-├── .env                          # Environment variables
-└── package.json                  # Dependencies & scripts
+|-- app/                          # Next.js App Router pages
+|   |-- api/                      # API routes
+|   |   |-- auth/                 # Authentication (connect, login)
+|   |   |-- genomic-records/      # CRUD for genomic records
+|   |   |-- access-requests/      # Access request management
+|   |   |-- consents/             # Consent management
+|   |   |-- audit-events/         # Audit trail
+|   |   `-- blockchain-status/    # Blockchain health check
+|   |-- patient/                  # Patient dashboard pages
+|   |-- lab/                      # Lab dashboard pages
+|   |-- researcher/               # Researcher dashboard pages
+|   `-- features/                 # Platform features page
+|-- contracts/                    # Solidity smart contracts
+|   `-- GenShareRegistry.sol      # Main contract
+|-- scripts/                      # Utility scripts
+|   |-- deploy.js                 # Contract deployment
+|   `-- seed-simple.js            # Database seeding
+|-- lib/                          # Shared libraries
+|   |-- blockchain.ts             # Blockchain integration (ethers.js)
+|   |-- contract-abi.ts           # Centralized contract ABIs
+|   |-- blockchain-utils.ts       # Blockchain utility functions
+|   |-- auth-context.tsx          # Authentication context
+|   |-- mongodb.ts                # MongoDB connection
+|   `-- models/                   # Mongoose models
+|-- components/                   # React UI components
+|   |-- landing-page.tsx          # Landing page
+|   |-- dashboard-shell.tsx       # Dashboard layout
+|   |-- theme-toggle.tsx          # Dark/Light theme toggle
+|   `-- ui/                       # shadcn/ui components
+|-- hardhat.config.js             # Hardhat configuration
+|-- .env                          # Environment variables
+`-- package.json                  # Dependencies & scripts
 ```
 
 ---
 
-## 12. Smart Contract Details
+## 11. Smart Contract Details
 
 The `GenShareRegistry.sol` contract implements four core features:
 
 ### 1. Genomic Hash Registry
-- **Function:** `registerGenomicData(pid, fileHash, ipfsCID)`
+- **Function:** `registerGenomicData(pid, fileHash, fileId)`
 - **Event:** `GenomicDataRegistered`
-- Stores SHA-256 hash and IPFS CID immutably on-chain
+- Stores SHA-256 hash and file identifier immutably on-chain
 - `verifyIntegrity()` compares hashes for tamper detection
 
 ### 2. Dynamic Consent Engine
@@ -441,7 +335,7 @@ sequenceDiagram
 
 ---
 
-## 13. API Endpoints
+## 12. API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -449,9 +343,6 @@ sequenceDiagram
 | `POST` | `/api/auth/login` | Email/password authentication |
 | `GET` | `/api/users/me` | Current user profile |
 | `GET/POST` | `/api/genomic-records` | List/create genomic records |
-| `POST` | `/api/upload` | Upload & encrypt file to IPFS |
-| `GET` | `/api/upload?cid=<CID>&decrypt=true` | Download & decrypt file from IPFS |
-| `GET` | `/api/ipfs/files` | List all IPFS files with metadata & gateway URLs |
 | `GET/POST/PATCH` | `/api/access-requests` | Manage access requests |
 | `GET/POST/PATCH` | `/api/consents` | Manage consent |
 | `GET` | `/api/audit-events` | View audit trail |
@@ -460,7 +351,7 @@ sequenceDiagram
 
 ---
 
-## 14. Troubleshooting
+## 13. Troubleshooting
 
 ### "MetaMask is not installed"
 Install the [MetaMask browser extension](https://metamask.io/) and create/import a wallet.
@@ -498,23 +389,6 @@ npm run hardhat:deploy
 # Copy the new contract address to .env
 ```
 
-### IPFS daemon not running
-File upload/download will fail if the IPFS daemon is not running. Start it:
-```bash
-& "E:\kubo_v0.28.0_windows-amd64\kubo\ipfs.exe" daemon
-```
-
-### "invalid path" error on IPFS upload
-This usually means the CID was not parsed correctly from the `ipfs add` output. Ensure you're using the latest code with the fixed regex in `lib/ipfs-cli.ts`.
-
-### Downloaded file is gibberish
-This is expected when accessing a file via the **IPFS gateway** directly (`http://127.0.0.1:8080/ipfs/<CID>`) — files are AES-256 encrypted before being stored. Use the **Download** button in the app (Lab → IPFS Files, or Patient → Download Records) which decrypts the file automatically.
-
-### Turbopack Error on Windows
-If you encounter "FATAL: An unexpected Turbopack error occurred" with junction point issues:
-- **Solution:** The project is configured to use webpack instead of Turbopack
-- **Command:** Use `npm run dev` (already configured with `--webpack` flag)
-- **Alternative:** Use `npm run dev:turbo` if you want to test with Turbopack (may cause Mongoose issues)
 
 ### "POST /api/auth/login 500" Error
 This occurs when Mongoose cannot create junction points on Windows:
@@ -554,25 +428,15 @@ npm install
 # 2. Seed database
 npm run seed
 
-# 3. Terminal 1: Start IPFS daemon
-& "path\to\ipfs.exe" daemon
-
-# 4. Terminal 2: Start blockchain
+# 3. Terminal 1: Start blockchain
 npm run hardhat:node
 
-# 5. Terminal 3: Deploy contract
+# 4. Terminal 2: Deploy contract
 npm run hardhat:deploy
 # → Copy contract address to .env
 
-# 6. Terminal 4: Start app
+# 5. Terminal 3: Start app
 npm run dev
 # → Open http://localhost:3000
 # Note: Uses webpack by default to avoid Turbopack issues on Windows
 ```
-
----
-
-**Owner:** Aastha Thakker  
-**Stack:** Next.js · MongoDB · Solidity · Hardhat · Ethers.js · IPFS (Kubo) · Tailwind CSS  
-**Network:** Ethereum (Local Hardhat Node)  
-**License:** MIT

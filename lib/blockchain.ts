@@ -1,74 +1,15 @@
 import { ethers } from 'ethers';
 import { storeTransaction, storeBlock, ITransactionData } from './blockchain-storage';
 import { getOperationType, calculateGasCostETH } from './operation-mapping';
-
-// ABI for GenShareRegistry — only the functions we use from the API routes
-const CONTRACT_ABI = [
-    // Genomic Hash Registry
-    "function registerGenomicData(string calldata _pid, string calldata _fileHash, string calldata _fileId) external returns (uint256)",
-    "function verifyIntegrity(uint256 _recordIndex, string calldata _fileHash) external view returns (bool matches)",
-    "function getGenomicRecord(uint256 _index) external view returns (string pid, string fileHash, string fileId, address registeredBy, uint256 timestamp)",
-    "function genomicRecords(uint256) external view returns (string pid, string fileHash, string fileId, address registeredBy, uint256 timestamp, bool exists)",
-    "function recordCount() external view returns (uint256)",
-
-    // Dynamic Consent
-    "function grantConsent(string calldata _pid, address _researcher, uint256 _recordIndex, uint256 _durationDays) external returns (uint256)",
-    "function revokeConsent(uint256 _consentIndex) external",
-    "function isConsentActive(uint256 _consentIndex) external view returns (bool)",
-    "function getConsent(uint256 _index) external view returns (string pid, address researcher, uint256 recordIndex, uint256 grantedAt, uint256 expiresAt, bool revoked)",
-    "function consentCount() external view returns (uint256)",
-
-    // Access Logging
-    "function logAccess(string calldata _pid, address _researcher, uint256 _recordIndex, uint256 _consentIndex) external returns (bool)",
-
-    // Role Registry
-    "function registerRole(address _account, uint8 _role) external",
-    "function roles(address) external view returns (uint8)",
-    "function memberCount(uint8) external view returns (uint256)",
-
-    // Registration Voting
-    "function proposeRegistration(address _applicant, uint8 _role, uint256 _votingDays) external returns (uint256)",
-    "function voteOnRegistration(uint256 _proposalId, bool _approve, address _voter) external",
-    "function finalizeRegistration(uint256 _proposalId) external",
-    "function getProposal(uint256 _proposalId) external view returns (address applicant, uint8 requestedRole, uint256 approveCount, uint256 rejectCount, uint256 deadline, uint8 status)",
-    "function proposalCount() external view returns (uint256)",
-    "function hasVoted(uint256, address) external view returns (bool)",
-
-    // Events
-    "event GenomicDataRegistered(uint256 indexed recordIndex, string pid, string fileHash, string fileId, address indexed registeredBy, uint256 timestamp)",
-    "event ConsentGranted(uint256 indexed consentIndex, string pid, address indexed researcher, uint256 recordIndex, uint256 grantedAt, uint256 expiresAt)",
-    "event ConsentRevoked(uint256 indexed consentIndex, string pid, address indexed researcher, uint256 timestamp)",
-    "event DataAccessed(string pid, address indexed researcher, uint256 indexed recordIndex, uint256 indexed consentIndex, uint256 timestamp)",
-    "event AccessDenied(string pid, address indexed researcher, uint256 indexed recordIndex, string reason, uint256 timestamp)",
-    "event RegistrationProposed(uint256 indexed proposalId, address indexed applicant, uint8 requestedRole, uint256 deadline)",
-    "event RegistrationVoted(uint256 indexed proposalId, address indexed voter, bool approve)",
-    "event RegistrationApproved(uint256 indexed proposalId, address indexed applicant, uint8 role)",
-    "event RegistrationRejected(uint256 indexed proposalId, address indexed applicant, uint8 role)",
-];
-
-// Default Hardhat account #0 private key (well-known, only for local dev)
-const DEFAULT_HARDHAT_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-
-function getProvider() {
-    const rpcUrl = process.env.RPC_URL || "http://127.0.0.1:8545";
-    return new ethers.JsonRpcProvider(rpcUrl);
-}
-
-export { getProvider };
-
-function getSigner() {
-    const provider = getProvider();
-    const privateKey = process.env.HARDHAT_PRIVATE_KEY || DEFAULT_HARDHAT_KEY;
-    return new ethers.Wallet(privateKey, provider);
-}
+import { CONTRACT_ABI } from './contract-abi';
+import { createProvider, createContract, createContractWithSigner, DEFAULT_HARDHAT_KEY } from './blockchain-utils';
 
 function getContract() {
     const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
     if (!contractAddress) {
         throw new Error("NEXT_PUBLIC_CONTRACT_ADDRESS not set in .env");
     }
-    const signer = getSigner();
-    return new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
+    return createContractWithSigner(contractAddress);
 }
 
 // ===== Genomic Hash Registry =====
@@ -181,7 +122,7 @@ export async function registerGenomicData(
         // Store block if not already stored
         if (receipt.blockNumber) {
             try {
-                const blockData = await getProvider().getBlock(receipt.blockNumber);
+                const blockData = await createProvider().getBlock(receipt.blockNumber);
                 if (blockData) {
                     await storeBlock({
                         blockNumber: blockData.number,
@@ -324,7 +265,7 @@ export async function grantConsent(
         // Store block if not already stored
         if (receipt.blockNumber) {
             try {
-                const blockData = await getProvider().getBlock(receipt.blockNumber);
+                const blockData = await createProvider().getBlock(receipt.blockNumber);
                 if (blockData) {
                     await storeBlock({
                         blockNumber: blockData.number,
@@ -584,7 +525,7 @@ export async function getProposalDetails(proposalId: number): Promise<{
  */
 export async function isBlockchainAvailable(): Promise<boolean> {
     try {
-        const provider = getProvider();
+        const provider = createProvider();
         await provider.getBlockNumber();
         return true;
     } catch {

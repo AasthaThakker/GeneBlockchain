@@ -1,16 +1,17 @@
 const { ethers } = require('ethers');
 require('dotenv').config();
 
-const CONTRACT_ABI = [
+// Import centralized ABI (convert to JS format)
+const VERIFICATION_ABI = [
     "function proposalCount() external view returns (uint256)",
     "function memberCount(uint8) external view returns (uint256)",
     "function roles(address) external view returns (uint8)",
-    "function getProposal(uint256) external view returns (address, uint8, uint256, uint256, uint256, uint8)"
+    "function getProposal(uint256 _proposalId) external view returns (address, uint8, uint256, uint256, uint256, uint8)"
 ];
 
 async function main() {
     const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || "http://127.0.0.1:8545");
-    const contract = new ethers.Contract(process.env.NEXT_PUBLIC_CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+    const contract = new ethers.Contract(process.env.NEXT_PUBLIC_CONTRACT_ADDRESS, VERIFICATION_ABI, provider);
 
     try {
         const count = await contract.proposalCount();
